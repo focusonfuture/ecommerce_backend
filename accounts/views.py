@@ -25,3 +25,43 @@ class RegisterView(generics.CreateAPIView):
             },
             "message": "User created successfully",
         }, status=status.HTTP_201_CREATED)
+    
+
+
+# http://127.0.0.1:8000/api/auth/register/
+{
+  "email": "alice@example.com",
+  "password": "VeryStrongPass123",
+  "password2": "VeryStrongPass123",
+  "first_name": "Alice",
+  "last_name": "Wonderland",
+  "username": "alice123",
+  "phone": "+19876543210"
+}
+
+# http://127.0.0.1:8000/api/auth/login/
+{
+  "email": "alice@example.com",
+  "password": "VeryStrongPass123"
+}
+
+# Go to Authorization tab
+# Type: Bearer Token
+# Paste the access token (not refresh) into the Token field
+
+# Authorization:
+
+# http://127.0.0.1:8000/api/auth/token/refresh/
+# {
+#   "refresh": ""
+# }
+
+
+
+#change user to data
+#add status
+#access token
+#refresh token
+#token storage
+#session storage
+
