@@ -1,6 +1,7 @@
 from pathlib import Path
 import os
 from decouple import config
+import cloudinary
 
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -30,8 +31,13 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'rest_framework_simplejwt',
+    'django_filters',
+    'cloudinary',
+    'cloudinary_storage',
     'corsheaders',
+    'mptt',
     'accounts',
+    'products',
 ]
 
 MIDDLEWARE = [
@@ -153,3 +159,12 @@ SIMPLE_JWT = {
     "BLACKLIST_AFTER_ROTATION": True,
     "AUTH_HEADER_TYPES": ("Bearer",),
 }
+
+
+cloudinary.config(
+    cloud_name=config('CLOUDINARY_CLOUD_NAME'),
+    api_key = config('CLOUDINARY_API_KEY'),  
+    api_secret = config('CLOUDINARY_API_SECRET'),  
+    secure = True
+)
+DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
