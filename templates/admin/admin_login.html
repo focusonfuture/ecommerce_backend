@@ -1,0 +1,277 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ElectroMart • Admin Portal</title>
+
+    <!-- Preconnect for faster fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+
+    <!-- Tailwind CSS via CDN (dev only — replace with compiled build in production) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                        display: ['"Space Grotesk"', 'sans-serif']
+                    },
+                    animation: {
+                        'gradient': 'gradientShift 15s ease infinite',
+                        'float': 'float 20s infinite linear',
+                    },
+                    keyframes: {
+                        gradientShift: {
+                            '0%, 100%': { backgroundPosition: '0% 50%' },
+                            '50%': { backgroundPosition: '100% 50%' },
+                        },
+                        float: {
+                            '0%': { transform: 'translateY(100vh) translateX(0)', opacity: '0' },
+                            '10%': { opacity: '1' },
+                            '90%': { opacity: '1' },
+                            '100%': { transform: 'translateY(-100px) translateX(100px)', opacity: '0' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- SweetAlert2 (loaded once) -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <style>
+        body {
+            background: linear-gradient(-45deg, #0f0f23, #1a1a2e, #16213e, #0f3460);
+            background-size: 400% 400%;
+            animation: gradient 15s ease infinite;
+            min-height: 100vh;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .particle {
+            position: absolute;
+            background: rgba(59, 130, 246, 0.15);
+            border-radius: 50%;
+            pointer-events: none;
+            animation: float 20s infinite linear;
+        }
+
+        .glass {
+            background: rgba(255, 255, 255, 0.09);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.37);
+        }
+
+        .input-focus:focus {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.3);
+            border-color: #6366f1;
+        }
+
+        .btn-gradient {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            transition: all 0.3s ease;
+        }
+        .btn-gradient:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 20px 40px rgba(102, 126, 234, 0.4);
+        }
+
+        /* Honeypot - invisible to humans */
+        .bot-field {
+            position: absolute;
+            left: -9999px;
+            opacity: 0;
+        }
+    </style>
+</head>
+<body class="relative min-h-screen flex items-center justify-center overflow-hidden">
+
+    <!-- Floating Particles -->
+    <div id="particles" class="fixed inset-0 pointer-events-none"></div>
+
+    <!-- Main Login Card -->
+    <div class="relative z-10 w-full max-w-md px-6">
+        <div class="glass rounded-3xl overflow-hidden shadow-2xl">
+            <div class="p-10">
+
+                <!-- Logo & Title -->
+                <div class="text-center mb-10">
+                    <div class="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl mb-5 shadow-lg">
+                        <svg class="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                        </svg>
+                    </div>
+                    <h1 class="text-4xl font-bold text-white mb-2 font-display">ElectroMart</h1>
+                    <p class="text-blue-200 text-lg">Admin Dashboard</p>
+                </div>
+
+                <!-- Messages (SweetAlert2 Toasts) -->
+                {% if messages %}
+                <script>
+                    document.addEventListener('DOMContentLoaded', () => {
+                        const Toast = Swal.mixin({
+                            toast: true,
+                            position: 'top-end',
+                            showConfirmButton: false,
+                            timer: 4500,
+                            timerProgressBar: true,
+                            background: 'rgba(17, 24, 39, 0.98)',
+                            color: '#fff',
+                            iconColor: '#fff',
+                            didOpen: (toast) => {
+                                toast.addEventListener('mouseenter', Swal.stopTimer);
+                                toast.addEventListener('mouseleave', Swal.resumeTimer);
+                            }
+                        });
+
+                        {% for message in messages %}
+                            Toast.fire({
+                                icon: '{{ message.tags|default:"info" }}',
+                                title: '{{ message|safe }}'
+                            });
+                        {% endfor %}
+                    });
+                </script>
+                {% endif %}
+
+                <!-- Login Form -->
+                <form method="post" id="loginForm" class="space-y-6">
+                    {% csrf_token %}
+
+                    <!-- Honeypot Field (Anti-bot) -->
+                    <div class="bot-field" aria-hidden="true">
+                        <input type="text" name="website" tabindex="-1" autocomplete="off" value="">
+                    </div>
+
+                    <!-- Email Field -->
+                    <div>
+                        <label for="email" class="block text-sm font-medium text-blue-100 mb-2">Email Address</label>
+                        <div class="relative">
+                            <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                                <svg class="w-5 h-5 text-blue-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-18 0 9 9 0 0118 0z" />
+                                </svg>
+                            </div>
+                            <input 
+                                type="email"
+                                name="email"
+                                id="email"
+                                required
+                                autocomplete="email"
+                                placeholder="admin@electromart.com"
+                                class="w-full pl-12 pr-4 py-4 bg-white/10 border border-white/20 rounded-xl text-white placeholder-blue-200 input-focus transition-all duration-300 focus:bg-white/15"
+                            >
+                        </div>
+                    </div>
+
+                    <!-- Password Field -->
+                    <div>
+                        <label for="password" class="block text-sm font-medium text-blue-100 mb-2">Password</label>
+                        <div class="relative">
+                            <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                                <svg class="w-5 h-5 text-blue-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 11c0-2.21-1.79-4-4-4s-4 1.79-4 4 1.79 4 4 4 4-1.79 4-4zm-8 4v1a1 1 0 001 1h14a1 1 0 001-1v-1m-8-9v3a3 3 0 00-3 3m3-3a3 3 0 013 3m-6 6h12" />
+                                </svg>
+                            </div>
+                            <input 
+                                type="password"
+                                name="password"
+                                id="password"
+                                required
+                                autocomplete="current-password"
+                                placeholder="Enter your password"
+                                class="w-full pl-12 pr-12 py-4 bg-white/10 border border-white/20 rounded-xl text-white placeholder-blue-200 input-focus transition-all duration-300 focus:bg-white/15"
+                            >
+                            <button type="button" id="togglePassword" class="absolute inset-y-0 right-0 pr-4 flex items-center text-blue-300 hover:text-white transition">
+                                <svg id="eyeOpen" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                </svg>
+                                <svg id="eyeClosed" class="w-5 h-5 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L2 2m7.878 7.878L21.121 21.121" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Submit Button -->
+                    <button 
+                        type="submit"
+                        id="loginBtn"
+                        class="w-full py-4 px-6 btn-gradient text-white font-semibold text-lg rounded-xl shadow-2xl transform transition-all duration-300 flex items-center justify-center space-x-3 mt-8 hover:scale-105"
+                    >
+                        <span id="btnText">Sign In to Dashboard</span>
+                        <svg id="loadingSpinner" class="hidden animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                        </svg>
+                    </button>
+
+                    <p class="text-center text-blue-200 text-sm mt-8">
+                        Secured Login • Only authorized personnel
+                    </p>
+                </form>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="text-center mt-8 text-blue-300 text-sm">
+            © 2025 <span class="font-display">ElectroMart</span> • All Rights Reserved
+        </div>
+    </div>
+
+    <!-- Particles + Interactions -->
+    <script>
+        // Floating particles
+        function createParticle() {
+            const particle = document.createElement('div');
+            particle.classList.add('particle');
+            const size = Math.random() * 70 + 20 + 'px';
+            particle.style.width = size;
+            particle.style.height = size;
+            particle.style.left = Math.random() * 100 + '%';
+            particle.style.animationDuration = Math.random() * 25 + 15 + 's';
+            particle.style.animationDelay = Math.random() * 5 + 's';
+            document.getElementById('particles').appendChild(particle);
+            setTimeout(() => particle.remove(), 40000);
+        }
+        for (let i = 0; i < 18; i++) {
+            setTimeout(createParticle, i * 400);
+        }
+
+        // Password toggle
+        document.getElementById('togglePassword')?.addEventListener('click', function() {
+            const pwd = document.getElementById('password');
+            const open = document.getElementById('eyeOpen');
+            const closed = document.getElementById('eyeClosed');
+            if (pwd.type === 'password') {
+                pwd.type = 'text';
+                open.classList.add('hidden');
+                closed.classList.remove('hidden');
+            } else {
+                pwd.type = 'password';
+                open.classList.remove('hidden');
+                closed.classList.add('hidden');
+            }
+        });
+
+        // Loading state on submit
+        document.getElementById('loginForm').addEventListener('submit', function() {
+            const btn = document.getElementById('loginBtn');
+            btn.disabled = true;
+            document.getElementById('btnText').classList.add('hidden');
+            document.getElementById('loadingSpinner').classList.remove('hidden');
+        });
+    </script>
+</body>
+</html>

@@ -1,16 +1,18 @@
-# products/urls.py
-from django.urls import path, include
-from rest_framework.routers import DefaultRouter
+from django.urls import path
 from . import views
 
-router = DefaultRouter(trailing_slash=False)  # Clean URLs without trailing slash
-router.register(r'categories', views.CategoryViewSet, basename='category')
-router.register(r'brands', views.BrandViewSet, basename='brand')
+app_name = 'dashboard'
 
 urlpatterns = [
-    path('', include(router.urls)),
+    # Category URLs
+    path('categories/', views.CategoryListView.as_view(), name='category_list'),
+    path('categories/create/', views.CategoryCreateView.as_view(), name='category_create'),
+    path('categories/<path:category_path>/edit/', views.CategoryUpdateView.as_view(), name='category_update'),
+    path('categories/<path:category_path>/delete/', views.CategoryDeleteView.as_view(), name='category_delete'),
 
-    # Extra useful endpoints
-    path('categories/tree', views.CategoryTreeView.as_view(), name='category-tree'),
-    path('categories/root', views.CategoryRootListView.as_view(), name='category-root'),
+    # Brand URLs
+    path('brands/', views.BrandListView.as_view(), name='brand_list'),
+    path('brands/create/', views.BrandCreateView.as_view(), name='brand_create'),
+    path('brands/<slug:slug>/edit/', views.BrandUpdateView.as_view(), name='brand_update'),
+    path('brands/<slug:slug>/delete/', views.BrandDeleteView.as_view(), name='brand_delete'),
 ]

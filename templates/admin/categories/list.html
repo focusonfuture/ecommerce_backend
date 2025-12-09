@@ -1,0 +1,250 @@
+{% extends 'admin/base.html'%}
+
+{% load static %}
+{% block content%}
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Categories • ElectroMart Admin</title>
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+    <!-- Tailwind + SweetAlert2 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        display: ['"Space Grotesk"', 'sans-serif']
+                    },
+                    animation: {
+                        'fade-in': 'fadeIn 0.6s ease-out',
+                        'slide-up': 'slideUp 0.8s ease-out',
+                    },
+                    keyframes: {
+                        fadeIn: { '0%': { opacity: '0' }, '100%': { opacity: '1' } },
+                        slideUp: { '0%': { opacity: '0', transform: 'translateY(30px)' }, '100%': { opacity: '1', transform: 'translateY(0)' } }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            background: linear-gradient(-45deg, #0f0f23, #1a1a2e, #16213e, #0f3460);
+            background-size: 400% 400%;
+            animation: gradientShift 15s ease infinite;
+            min-height: 100vh;
+        }
+        @keyframes gradientShift {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+        }
+        .glass {
+            background: rgba(255, 255, 255, 0.09);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.37);
+        }
+        .btn-gradient {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .btn-gradient:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 20px 40px rgba(102, 126, 234, 0.4);
+        }
+        .particle {
+            position: absolute;
+            background: rgba(59, 130, 246, 0.15);
+            border-radius: 50%;
+            pointer-events: none;
+            animation: float 25s infinite linear;
+        }
+        @keyframes float {
+            0% { transform: translateY(100vh) translateX(0); opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { transform: translateY(-100px) translateX(100px); opacity: 0; }
+        }
+        tr:hover {
+            background: rgba(255, 255, 255, 0.08) !important;
+            transition: all 0.3s;
+        }
+        .indent { padding-left: calc(1.5rem * var(--level, 0)); }
+    </style>
+</head>
+<body class="relative min-h-screen overflow-x-hidden">
+
+    <!-- Floating Particles -->
+    <div id="particles" class="fixed inset-0 pointer-events-none"></div>
+
+    <div class="relative z-10 min-h-screen flex items-center justify-center px-4 py-12">
+        <div class="w-full max-w-7xl">
+            <div class="glass rounded-3xl overflow-hidden shadow-2xl animate-fade-in">
+
+                <!-- Header -->
+                <div class="bg-gradient-to-r from-blue-600 to-purple-700 px-8 py-10 text-center">
+                    <h1 class="text-5xl font-bold text-white font-display">Manage Categories</h1>
+                    <p class="text-blue-100 mt-3 text-lg">Organize your store hierarchy</p>
+                </div>
+
+                <!-- Toolbar -->
+                <div class="p-8 border-b border-white/10">
+                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                        <div class="flex flex-col sm:flex-row gap-4 w-full md:w-auto">
+                            <input type="text" placeholder="Search categories..."
+                                   class="px-6 py-4 bg-white/10 border border-white/20 rounded-xl text-white placeholder-blue-300 focus:outline-none focus:border-blue-400 w-full md:w-96">
+                            <a href="{% url 'dashboard:category_create' %}"
+                               class="px-8 py-4 btn-gradient text-white font-bold rounded-xl shadow-lg hover:scale-105 transition flex items-center justify-center space-x-3">
+                                <i class="fas fa-plus"></i>
+                                <span>Add New Category</span>
+                            </a>
+                        </div>
+                        <div class="text-blue-200">
+                            Total: <strong>{{ categories|length }}</strong> categories
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Categories Table -->
+                <div class="p-8 overflow-x-auto">
+                    {% if categories %}
+                    <div class="glass rounded-2xl overflow-hidden">
+                        <table class="w-full text-left">
+                            <thead class="bg-white/5">
+                                <tr>
+                                    <th class="px-6 py-5 text-blue-100 font-medium">Category</th>
+                                    <th class="px-6 py-5 text-blue-100 font-medium text-center">Image</th>
+                                    <th class="px-6 py-5 text-blue-100 font-medium text-center">Products</th>
+                                    <th class="px-6 py-5 text-blue-100 font-medium text-center">Status</th>
+                                    <th class="px-6 py-5 text-blue-100 font-medium text-center">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-white/10">
+                                {% for category in categories %}
+                                    <tr class="animate-slide-up" style="animation-delay: {{ forloop.counter0|add:0|floatformat:1 }}s">                                    <td class="px-6 py-6">
+                                        <div class="flex items-center">
+                                            <div class="indent" style="--level: {{ category.level }}"></div>
+                                            {% if category.level > 0 %}
+                                                <i class="fas fa-level-down-alt text-blue-400 mr-3"></i>
+                                            {% endif %}
+                                            <div>
+                                                <div class="text-white font-medium">{{ category.name }}</div>
+                                                <div class="text-blue-300 text-sm">{{ category.get_full_path }}</div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-6 text-center">
+                                        {% if category.image %}
+                                            <img src="{{ category.image.url }}" alt="{{ category.name }}"
+                                                 class="w-16 h-16 object-cover rounded-xl mx-auto shadow-lg">
+                                        {% else %}
+                                            <div class="w-16 h-16 bg-white/10 rounded-xl flex items-center justify-center mx-auto">
+                                                <i class="fas fa-image text-blue-400 text-2xl"></i>
+                                            </div>
+                                        {% endif %}
+                                    </td>
+                                    <td class="px-6 py-6 text-center">
+                                        <span class="px-4 py-2 bg-blue-600/20 text-blue-300 rounded-full font-medium">
+                                            {{ category.product_count }}
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-6 text-center">
+                                        {% if category.is_active %}
+                                            <span class="px-4 py-2 bg-green-600/20 text-green-300 rounded-full text-sm">Active</span>
+                                        {% else %}
+                                            <span class="px-4 py-2 bg-red-600/20 text-red-300 rounded-full text-sm">Inactive</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="px-6 py-6 text-center">
+                                        <div class="flex justify-center space-x-3">
+                                            <a href="{% url 'dashboard:category_update' category.path %}"
+                                               class="p-3 bg-blue-600/20 hover:bg-blue-600/40 text-blue-300 hover:text-white rounded-xl transition">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                            <button onclick="confirmDelete('{{ category.path }}', '{{ category.name|escapejs }}')"
+                                                    class="p-3 bg-red-600/20 hover:bg-red-600/40 text-red-300 hover:text-white rounded-xl transition">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                        <div class="text-center py-20">
+                            <i class="fas fa-folder-open text-8xl text-blue-400/30 mb-6"></i>
+                            <p class="text-2xl text-blue-200">No categories yet</p>
+                            <a href="{% url 'dashboard:category_create' %}"
+                               class="mt-6 inline-block px-8 py-4 btn-gradient text-white font-bold rounded-xl">
+                                Create Your First Category
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+
+                <!-- Footer -->
+                <div class="px-8 py-6 border-t border-white/10 text-center text-blue-300 text-sm">
+                    © 2025 <span class="font-display">ElectroMart</span> • Admin Portal
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SweetAlert2 Delete Confirmation -->
+    <script>
+        function confirmDelete(path, name) {
+            Swal.fire({
+                title: 'Delete Category?',
+                text: `"${name}" will be permanently deleted.`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#ef4444',
+                cancelButtonColor: '#6b7280',
+                confirmButtonText: 'Yes, delete it!',
+                background: 'rgba(17, 24, 39, 0.98)',
+                color: '#fff',
+                backdrop: 'rgba(0,0,0,0.8)'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    window.location.href = `/admin/categories/${path}/delete/`;
+                }
+            });
+        }
+
+        // Particles
+        function createParticle() {
+            const p = document.createElement('div');
+            p.classList.add('particle');
+            const size = Math.random() * 80 + 20 + 'px';
+            p.style.width = size;
+            p.style.height = size;
+            p.style.left = Math.random() * 100 + '%';
+            p.style.animationDuration = Math.random() * 30 + 20 + 's';
+            document.getElementById('particles').appendChild(p);
+            setTimeout(() => p.remove(), 50000);
+        }
+        for (let i = 0; i < 20; i++) {
+            setTimeout(createParticle, i * 300);
+        }
+    </script>
+</body>
+
+</html>
+{% endblock content%}

@@ -23,7 +23,7 @@ ALLOWED_HOSTS = []
 # Application definition
 
 INSTALLED_APPS = [
-    'django.contrib.admin',
+    # 'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     'mptt',
     'accounts',
     'products',
+    'cart',
 ]
 
 MIDDLEWARE = [
@@ -57,7 +58,7 @@ ROOT_URLCONF = 'Ecommerce_Main.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR/'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -124,8 +125,11 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATICFILES_DIRS = [
+    BASE_DIR/'static'
+]
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
@@ -168,3 +172,81 @@ cloudinary.config(
     secure = True
 )
 DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
+
+
+#=====================logger config==========================
+LOG_DIR = BASE_DIR / 'logs'
+LOG_DIR.mkdir(exist_ok=True)         
+(LOG_DIR / 'ecommerce.log').touch(exist_ok=True)
+(LOG_DIR / 'models.log').touch(exist_ok=True)
+
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
+            'style': '{',
+        },
+        'simple': {
+            'format': '{levelname} {asctime} {name} → {message}',
+            'style': '{',
+        },
+        'detailed': {
+            'format': '[%(asctime)s] %(levelname)s [%(name)s.%(funcName)s:%(lineno)d] %(message)s',
+            'datefmt': '%d/%b/%Y %H:%M:%S',
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'simple',
+            'level': 'INFO',
+        },
+        'file': {
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': os.path.join(BASE_DIR, 'logs', 'ecommerce.log'),
+            'maxBytes': 10*1024*1024,  # 10 MB
+            'backupCount': 5,
+            'formatter': 'detailed',
+            'level': 'INFO',
+        },
+        'models_file': {
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': os.path.join(BASE_DIR, 'logs', 'models.log'),
+            'maxBytes': 5*1024*1024,   # 5 MB
+            'backupCount': 3,
+            'formatter': 'detailed',
+            'level': 'INFO',
+        },
+    },
+    'loggers': {
+        # Catch-all logger (for third-party apps)
+        '': {
+            'handlers': ['console', 'file'],
+            'level': 'WARNING',
+            'propagate': False,
+        },
+
+        'products': {                     # ← CHANGE THIS TO YOUR APP NAME
+            'handlers': ['console', 'file'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+
+        # Specifically for models.py (Category & Brand saves)
+        'products.models': {              # ← CHANGE THIS TOO
+            'handlers': ['console', 'models_file'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+
+        # Optional: separate logger if you want only Category/Brand logs
+        'category_brand_logger': {
+            'handlers': ['console', 'models_file'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+    },
+}
