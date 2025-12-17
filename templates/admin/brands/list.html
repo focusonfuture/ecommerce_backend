@@ -10,16 +10,13 @@
     from { opacity: 0; transform: translateY(12px); }
     to { opacity: 1; transform: translateY(0); }
 }
-
 @keyframes pulseSoft {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(20,184,166,.35); }
+    0%,100% { box-shadow: 0 0 0 0 rgba(20,184,166,.35); }
     50% { box-shadow: 0 0 0 6px rgba(20,184,166,0); }
 }
-
 .animate-fade-slide {
     animation: fadeSlide .45s cubic-bezier(.4,0,.2,1) both;
 }
-
 .card-hover {
     transition: all .25s ease;
 }
@@ -27,7 +24,6 @@
     transform: translateY(-2px);
     box-shadow: 0 14px 30px -12px rgba(0,0,0,.15);
 }
-
 input:focus, select:focus {
     outline: none;
     border-color: #14b8a6;
@@ -41,41 +37,45 @@ input:focus, select:focus {
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
             <h1 class="text-2xl sm:text-3xl font-semibold text-slate-800 tracking-tight">
-                {{ title }}
+                {% trans "Brands" %}
             </h1>
             <p class="text-sm text-slate-500 mt-1">
-                {% trans "Manage and organize product categories" %}
+                {% trans "Manage product manufacturers and brand visibility" %}
             </p>
         </div>
 
-        <a href="{% url 'dashboard:category_create' %}"
+        <a href="{% url 'dashboard:brand_create' %}"
            class="inline-flex items-center gap-2 px-6 py-3
                   bg-gradient-to-r from-teal-600 to-emerald-600
                   hover:from-teal-700 hover:to-emerald-700
                   text-white rounded-xl shadow-md transition
                   hover:-translate-y-0.5 hover:shadow-lg">
             <span class="text-lg">＋</span>
-            {% trans "New Category" %}
+            {% trans "New Brand" %}
         </a>
     </div>
 
     <!-- ================= STATS ================= -->
     <div class="grid grid-cols-1 sm:grid-cols-3 gap-5">
         <div class="bg-white rounded-2xl p-5 shadow-sm card-hover">
-            <p class="text-sm text-slate-500">{% trans "Total Categories" %}</p>
-            <p class="text-3xl font-semibold text-slate-800">{{ total_count }}</p>
+            <p class="text-sm text-slate-500">{% trans "Total Brands" %}</p>
+            <p class="text-3xl font-semibold text-slate-800">
+                {{ page_obj.paginator.count }}
+            </p>
         </div>
 
         <div class="bg-white rounded-2xl p-5 shadow-sm card-hover">
-            <p class="text-sm text-slate-500">{% trans "Active Categories" %}</p>
-            <p class="text-3xl font-semibold text-emerald-600">{{ active_count }}</p>
+            <p class="text-sm text-slate-500">{% trans "Active Brands" %}</p>
+            <p class="text-3xl font-semibold text-emerald-600">
+                {{ brands|length }}
+            </p>
         </div>
 
         <div class="bg-gradient-to-br from-teal-50 to-emerald-50
                     rounded-2xl p-5 border border-teal-100">
             <p class="text-sm font-medium text-teal-700">{% trans "Tip" %}</p>
             <p class="text-sm text-teal-800 mt-1">
-                {% trans "Use toggles for instant control" %}
+                {% trans "Featured brands appear first in listings" %}
             </p>
         </div>
     </div>
@@ -85,27 +85,27 @@ input:focus, select:focus {
           class="grid grid-cols-1 lg:grid-cols-5 gap-3
                  bg-white rounded-2xl p-4 shadow-sm card-hover">
 
-        <input type="text" name="search" value="{{ search_query }}"
-               placeholder="{% trans 'Search category…' %}"
+        <input type="text" name="search" value="{{ request.GET.search }}"
+               placeholder="{% trans 'Search brand or country…' %}"
                class="lg:col-span-2 px-4 py-2.5 rounded-xl border border-slate-200">
 
         <select name="is_active" class="px-4 py-2.5 rounded-xl border border-slate-200">
             <option value="">{% trans "Status" %}</option>
-            <option value="1" {% if filter_is_active == "1" %}selected{% endif %}>
+            <option value="1" {% if request.GET.is_active == "1" %}selected{% endif %}>
                 {% trans "Active" %}
             </option>
-            <option value="0" {% if filter_is_active == "0" %}selected{% endif %}>
+            <option value="0" {% if request.GET.is_active == "0" %}selected{% endif %}>
                 {% trans "Inactive" %}
             </option>
         </select>
 
-        <select name="show_in_menu" class="px-4 py-2.5 rounded-xl border border-slate-200">
-            <option value="">{% trans "Menu Visibility" %}</option>
-            <option value="1" {% if filter_show_in_menu == "1" %}selected{% endif %}>
-                {% trans "Shown" %}
+        <select name="is_featured" class="px-4 py-2.5 rounded-xl border border-slate-200">
+            <option value="">{% trans "Featured" %}</option>
+            <option value="1" {% if request.GET.is_featured == "1" %}selected{% endif %}>
+                {% trans "Yes" %}
             </option>
-            <option value="0" {% if filter_show_in_menu == "0" %}selected{% endif %}>
-                {% trans "Hidden" %}
+            <option value="0" {% if request.GET.is_featured == "0" %}selected{% endif %}>
+                {% trans "No" %}
             </option>
         </select>
 
@@ -115,7 +115,7 @@ input:focus, select:focus {
                            text-white transition">
                 {% trans "Apply" %}
             </button>
-            <a href="{% url 'dashboard:category_list' %}"
+            <a href="{% url 'dashboard:brand_list' %}"
                class="flex-1 px-5 py-2.5 rounded-xl bg-slate-100
                       hover:bg-slate-200 text-center transition">
                 {% trans "Reset" %}
@@ -128,71 +128,63 @@ input:focus, select:focus {
         <table class="min-w-full text-sm">
             <thead class="bg-slate-100 text-slate-600 sticky top-0 z-10">
                 <tr>
-                    <th class="px-4 py-3 text-left">{% trans "Category" %}</th>
-                    <th class="px-4 py-3 text-left">{% trans "Parent" %}</th>
-                    <th class="px-4 py-3 text-center">{% trans "Image" %}</th>
-                    <th class="px-4 py-3 text-center">{% trans "Banner" %}</th>
+                    <th class="px-4 py-3 text-left">{% trans "Brand" %}</th>
+                    <th class="px-4 py-3 text-left">{% trans "Country" %}</th>
+                    <th class="px-4 py-3 text-center">{% trans "Logo" %}</th>
                     <th class="px-4 py-3 text-center">{% trans "Active" %}</th>
-                    <th class="px-4 py-3 text-center">{% trans "Menu" %}</th>
+                    <th class="px-4 py-3 text-center">{% trans "Featured" %}</th>
                     <th class="px-4 py-3 text-center">{% trans "Actions" %}</th>
                 </tr>
             </thead>
 
             <tbody class="divide-y">
-            {% for category in categories %}
+            {% for brand in brands %}
                 <tr class="transition hover:bg-teal-50/40
-                           {% if not category.is_active %} bg-slate-50 opacity-70 {% endif %}">
+                           {% if not brand.is_active %} bg-slate-50 opacity-70 {% endif %}">
 
                     <td class="px-4 py-3 font-medium text-slate-800">
-                        {{ category.name }}
+                        {{ brand.name }}
                     </td>
 
                     <td class="px-4 py-3 text-slate-600">
-                        {{ category.parent.name|default:"—" }}
+                        {{ brand.country|default:"—" }}
                     </td>
 
                     <td class="px-4 py-3 text-center">
-                        {% if category.image %}
-                            <img src="{{ category.image.url }}"
-                                 class="h-10 w-10 mx-auto rounded-lg object-cover">
-                        {% else %} — {% endif %}
-                    </td>
-
-                    <td class="px-4 py-3 text-center">
-                        {% if category.banner %}
-                            <img src="{{ category.banner.url }}"
-                                 class="h-10 w-20 mx-auto rounded-lg object-cover">
+                        {% if brand.logo %}
+                            <img src="{{ brand.logo.url }}"
+                                 class="h-10 w-10 mx-auto rounded-lg object-contain">
                         {% else %} — {% endif %}
                     </td>
 
                     <!-- ACTIVE TOGGLE -->
                     <td class="px-4 py-3 text-center">
                         <button type="button"
-                                data-id="{{ category.id }}"
-                                data-active="{{ category.is_active|yesno:'true,false' }}"
+                                data-id="{{ brand.id }}"
+                                data-active="{{ brand.is_active|yesno:'true,false' }}"
                                 onclick="toggleStatus(this)"
                                 class="relative inline-flex h-6 w-11 items-center rounded-full
                                        transition-colors duration-200
-                                       {{ category.is_active|yesno:'bg-emerald-500,bg-slate-300' }}">
+                                       {{ brand.is_active|yesno:'bg-emerald-500,bg-slate-300' }}">
                             <span class="inline-block h-4 w-4 bg-white rounded-full shadow
                                          transform transition-transform duration-200
-                                         {{ category.is_active|yesno:'translate-x-6,translate-x-1' }}">
+                                         {{ brand.is_active|yesno:'translate-x-6,translate-x-1' }}">
                             </span>
                         </button>
                     </td>
 
-                    <!-- MENU TOGGLE -->
+                    <!-- FEATURED TOGGLE -->
                     <td class="px-4 py-3 text-center">
                         <button type="button"
-                                data-id="{{ category.id }}"
-                                data-active="{{ category.show_in_menu|yesno:'true,false' }}"
-                                onclick="toggleMenu(this)"
+                                data-id="{{ brand.id }}"
+                                data-active="{{ brand.is_featured|yesno:'true,false' }}"
+                                onclick="toggleFeatured(this)"
                                 class="relative inline-flex h-6 w-11 items-center rounded-full
                                        transition-colors duration-200
-                                       {{ category.show_in_menu|yesno:'bg-teal-500,bg-slate-300' }}">
+                                       {{ brand.is_featured|yesno:'bg-teal-500,bg-slate-300' }}">
                             <span class="inline-block h-4 w-4 bg-white rounded-full shadow
                                          transform transition-transform duration-200
-                                         {{ category.show_in_menu|yesno:'translate-x-6,translate-x-1' }}">
+                                         {{ brand.is_featured|yesno:'translate-x-6,translate-x-1' }}">
                             </span>
                         </button>
                     </td>
@@ -200,15 +192,15 @@ input:focus, select:focus {
                     <!-- ACTIONS -->
                     <td class="px-4 py-3 text-center">
                         <div class="flex justify-center gap-2">
-                            <a href="{% url 'dashboard:category_update' category.path %}"
+                            <a href="{% url 'dashboard:brand_update' brand.pk %}"
                                class="px-3 py-1.5 rounded-lg bg-slate-100
                                       hover:bg-slate-200 transition">
                                 ✏️ {% trans "Edit" %}
                             </a>
 
-                            {% if not category.is_active %}
+                            {% if not brand.is_active %}
                             <button type="button"
-                                    onclick="confirmDelete('{{ category.path }}')"
+                                    onclick="confirmDelete('{{ brand.id }}')"
                                     class="px-3 py-1.5 rounded-lg bg-red-600
                                            text-white hover:bg-red-700 transition">
                                 🗑 {% trans "Delete" %}
@@ -219,9 +211,9 @@ input:focus, select:focus {
                 </tr>
             {% empty %}
                 <tr>
-                    <td colspan="7" class="text-center py-16 text-slate-500">
-                        <div class="text-5xl mb-3">📂</div>
-                        {% trans "No categories found" %}
+                    <td colspan="6" class="text-center py-16 text-slate-500">
+                        <div class="text-5xl mb-3">🏷️</div>
+                        {% trans "No brands found" %}
                     </td>
                 </tr>
             {% endfor %}
@@ -289,39 +281,30 @@ async function toggleStatus(btn) {
 
     animateToggle(btn, next, "bg-emerald-500", "bg-slate-300");
 
-    const res = await post("{% url 'dashboard:category_toggle_status' %}", { id });
+    const res = await post("{% url 'dashboard:brand_toggle_status' %}", { id });
     if (!res || !res.success) {
         animateToggle(btn, current, "bg-emerald-500", "bg-slate-300");
         Swal.fire("Error", res?.message || "Failed", "error");
-    } else {
-        Swal.fire({
-            toast: true,
-            position: "top-end",
-            icon: "success",
-            title: next ? "{{ _('Category activated') }}" : "{{ _('Category deactivated') }}",
-            showConfirmButton: false,
-            timer: 2000
-        });
     }
 }
 
-async function toggleMenu(btn) {
+async function toggleFeatured(btn) {
     const id = btn.dataset.id;
     const current = btn.dataset.active === "true";
     const next = !current;
 
     animateToggle(btn, next, "bg-teal-500", "bg-slate-300");
 
-    const res = await post("{% url 'dashboard:category_toggle_menu' %}", { id });
+    const res = await post("{% url 'dashboard:brand_toggle_featured' %}", { id });
     if (!res || !res.success) {
         animateToggle(btn, current, "bg-teal-500", "bg-slate-300");
         Swal.fire("Error", res?.message || "Failed", "error");
     }
 }
 
-function confirmDelete(path) {
+function confirmDelete(id) {
     Swal.fire({
-        title: "{{ _('Permanently delete category?') }}",
+        title: "{{ _('Permanently delete brand?') }}",
         text: "{{ _('This action cannot be undone.') }}",
         icon: "warning",
         showCancelButton: true,
@@ -332,7 +315,7 @@ function confirmDelete(path) {
         if (result.isConfirmed) {
             const form = document.createElement("form");
             form.method = "POST";
-            form.action = "{% url 'dashboard:category_delete' 'PATH' %}".replace("PATH", path);
+            form.action = "{% url 'dashboard:brand_delete' 0 %}".replace("/0/", `/${id}/`);
 
             const csrf = document.createElement("input");
             csrf.type = "hidden";

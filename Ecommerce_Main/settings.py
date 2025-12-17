@@ -36,6 +36,7 @@ INSTALLED_APPS = [
     'cloudinary_storage',
     'corsheaders',
     'mptt',
+    'widget_tweaks',
     'accounts',
     'products',
     'cart',

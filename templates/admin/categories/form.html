@@ -1,277 +1,228 @@
-{% extends 'admin/base.html'%}
-
+{% extends "admin/base.html" %}
 {% load static %}
-{% block content%}
+{% load i18n %}
+{% load widget_tweaks %}
+{% block content %}
 
-<!DOCTYPE html>
-<html lang="en" class="scroll-smooth">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>
-        {% if form.instance.pk %}Edit Category{% else %}Create New Category{% endif %} • ElectroMart Admin
-    </title>
+<!-- ================= ANIMATIONS ================= -->
+<style>
+@keyframes fadeUp {
+    from {
+        opacity: 0;
+        transform: translateY(14px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+.animate-fade-up {
+    animation: fadeUp 0.5s ease-out both;
+}
+</style>
 
-    <!-- Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+<div class="min-h-screen bg-slate-50 flex items-center justify-center px-4 py-12 animate-fade-up">
 
-    <!-- Tailwind + Animations -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    fontFamily: {
-                        sans: ['Inter', 'sans-serif'],
-                        display: ['"Space Grotesk"', 'sans-serif']
-                    },
-                    animation: {
-                        'fade-in': 'fadeIn 0.6s ease-out forwards',
-                        'slide-up': 'slideUp 0.7s ease-out forwards',
-                        'float': 'float 20s infinite linear',
-                    },
-                    keyframes: {
-                        fadeIn: {
-                            '0%': { opacity: '0', transform: 'translateY(20px)' },
-                            '100%': { opacity: '1', transform: 'translateY(0)' }
-                        },
-                        slideUp: {
-                            '0%': { opacity: '0', transform: 'translateY(40px)' },
-                            '100%': { opacity: '1', transform: 'translateY(0)' }
-                        }
-                    }
-                }
-            }
-        }
-    </script>
+    <div class="w-full max-w-5xl">
+        <div class="bg-white rounded-3xl shadow-xl overflow-hidden">
 
-    <!-- SweetAlert2 -->
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
-    <style>
-        body {
-            background: linear-gradient(-45deg, #0f0f23, #1a1a2e, #16213e, #0f3460);
-            background-size: 400% 400%;
-            animation: gradientShift 15s ease infinite;
-            min-height: 100vh;
-        }
-        @keyframes gradientShift {
-            0%, 100% { background-position: 0% 50%; }
-            50% { background-position: 100% 50%; }
-        }
-        .glass {
-            background: rgba(255, 255, 255, 0.09);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.37);
-        }
-        .input-focus:focus {
-            outline: none;
-            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.3);
-            border-color: #6366f1;
-            background: rgba(255, 255, 255, 0.15);
-        }
-        .btn-gradient {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        }
-        .btn-gradient:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 20px 40px rgba(102, 126, 234, 0.4);
-        }
-        .particle { 
-            position: absolute; 
-            background: rgba(59, 130, 246, 0.15); 
-            border-radius: 50%; 
-            pointer-events: none; 
-            animation: float 20s infinite linear;
-        }
-        @keyframes float {
-            0% { transform: translateY(100vh) translateX(0); opacity: 0; }
-            10% { opacity: 1; }
-            90% { opacity: 1; }
-            100% { transform: translateY(-100px) translateX(100px); opacity: 0; }
-        }
-    </style>
-</head>
-<body class="relative min-h-screen overflow-hidden">
-
-    <!-- Floating Particles -->
-    <div id="particles" class="fixed inset-0 pointer-events-none"></div>
-
-    <div class="relative z-10 min-h-screen flex items-center justify-center px-4 py-12">
-        <div class="w-full max-w-4xl">
-            <div class="glass rounded-3xl overflow-hidden shadow-2xl animate-fade-in">
-
-                <!-- Header -->
-                <div class="bg-gradient-to-r from-blue-600 to-purple-700 px-10 py-8 text-center">
-                    <h1 class="text-4xl font-bold text-white font-display">
-                        {% if form.instance.pk %}
-                            Edit Category
-                        {% else %}
-                            Create New Category
-                        {% endif %}
-                    </h1>
-                    <p class="text-blue-100 mt-2">Fill in the details below</p>
-                </div>
-
-                <!-- Form -->
-                <div class="p-8 md:p-12">
-                    <form method="post" enctype="multipart/form-data" id="categoryForm" class="space-y-8">
-                        {% csrf_token %}
-
-                        <!-- Name & Slug -->
-                        <div class="grid md:grid-cols-2 gap-6">
-                            <div class="animate-slide-up" style="animation-delay: 0.1s">
-                                <label class="block text-sm font-medium text-blue-100 mb-2">Category Name <span class="text-red-400">*</span></label>
-                                <input type="text" name="name" value="{{ form.instance.name }}" required
-                                       class="w-full px-5 py-4 bg-white/10 border border-white/20 rounded-xl text-white placeholder-blue-200 input-focus transition-all"
-                                       placeholder="e.g., Mobile Phones">
-                                {% if form.name.errors %}
-                                    <p class="text-red-400 text-sm mt-2">{{ form.name.errors.0 }}</p>
-                                {% endif %}
-                            </div>
-
-                            <div class="animate-slide-up" style="animation-delay: 0.2s">
-                                <label class="block text-sm font-medium text-blue-100 mb-2">Slug (auto-generated)</label>
-                                <input type="text" value="{{ form.instance.slug }}" readonly
-                                       class="w-full px-5 py-4 bg-white/5 border border-white/10 rounded-xl text-blue-300 cursor-not-allowed">
-                                <p class="text-xs text-blue-300 mt-2">Auto-filled from name</p>
-                            </div>
-                        </div>
-
-                        <!-- Parent Category -->
-                        <div class="animate-slide-up" style="animation-delay: 0.3s">
-                            <label class="block text-sm font-medium text-blue-100 mb-2">Parent Category</label>
-                            <select name="parent" class="w-full px-5 py-4 bg-white/10 border border-white/20 rounded-xl text-white input-focus">
-                                <option value="">None (Top Level)</option>
-                                {% for cat in form.fields.parent.queryset %}
-                                    <option value="{{ cat.pk }}" {% if cat.pk == form.instance.parent_id %}selected{% endif %}>
-                                        {{ cat.get_full_path }}
-                                    </option>
-                                {% endfor %}
-                            </select>
-                        </div>
-
-                        <!-- Images -->
-                        <div class="grid md:grid-cols-2 gap-6">
-                            <div class="animate-slide-up" style="animation-delay: 0.4s">
-                                <label class="block text-sm font-medium text-blue-100 mb-2">Category Image</label>
-                                {% if form.instance.image %}
-                                    <img src="{{ form.instance.image.url }}" alt="Current" class="w-full h-48 object-cover rounded-xl mb-3 shadow-lg">
-                                {% endif %}
-                                <input type="file" name="image" accept="image/*"
-                                       class="w-full px-5 py-4 bg-white/10 border border-white/20 rounded-xl text-white file:mr-4 file:py-3 file:px-6 file:rounded-xl file:border-0 file:bg-gradient-to-r file:from-blue-600 file:to-purple-600 file:text-white file:font-medium hover:file:brightness-110">
-                            </div>
-
-                            <div class="animate-slide-up" style="animation-delay: 0.5s">
-                                <label class="block text-sm font-medium text-blue-100 mb-2">Banner Image</label>
-                                {% if form.instance.banner %}
-                                    <img src="{{ form.instance.banner.url }}" alt="Banner" class="w-full h-48 object-cover rounded-xl mb-3 shadow-lg">
-                                {% endif %}
-                                <input type="file" name="banner" accept="image/*"
-                                       class="w-full px-5 py-4 bg-white/10 border border-white/20 rounded-xl text-white file:mr-4 file:py-3 file:px-6 file:rounded-xl file:border-0 file:bg-gradient-to-r file:from-purple-600 file:to-pink-600 file:text-white file:font-medium">
-                            </div>
-                        </div>
-
-                        <!-- Icon & SEO -->
-                        <div class="grid md:grid-cols-2 gap-6">
-                            <div class="animate-slide-up" style="animation-delay: 0.6s">
-                                <label class="block text-sm font-medium text-blue-100 mb-2">Icon Class (FontAwesome)</label>
-                                <input type="text" name="icon" value="{{ form.instance.icon }}" placeholder="e.g., fas fa-mobile-alt"
-                                       class="w-full px-5 py-4 bg-white/10 border border-white/20 rounded-xl text-white placeholder-blue-200 input-focus">
-                                <p class="text-xs text-blue-300 mt-2">Get icons from <a href="https://fontawesome.com" target="_blank" class="underline">FontAwesome</a></p>
-                            </div>
-
-                            <div class="animate-slide-up" style="animation-delay: 0.7s">
-                                <label class="block text-sm font-medium text-blue-100 mb-2">Sort Order</label>
-                                <input type="number" name="sort_order" value="{{ form.instance.sort_order|default:0 }}" min="0"
-                                       class="w-full px-5 py-4 bg-white/10 border border-white/20 rounded-xl text-white input-focus">
-                            </div>
-                        </div>
-
-                        <!-- Status Toggles -->
-                        <div class="flex flex-wrap gap-8 animate-slide-up" style="animation-delay: 0.8s">
-                            <label class="flex items-center space-x-3 cursor-pointer">
-                                <input type="checkbox" name="is_active" {% if form.instance.is_active %}checked{% endif %}
-                                       class="w-6 h-6 text-blue-600 rounded focus:ring-blue-500">
-                                <span class="text-blue-100">Active</span>
-                            </label>
-                            <label class="flex items-center space-x-3 cursor-pointer">
-                                <input type="checkbox" name="show_in_menu" {% if form.instance.show_in_menu %}checked{% endif %}
-                                       class="w-6 h-6 text-purple-600 rounded focus:ring-purple-500">
-                                <span class="text-blue-100">Show in Menu</span>
-                            </label>
-                        </div>
-
-                        <!-- Action Buttons -->
-                        <div class="flex flex-col sm:flex-row gap-4 pt-8 animate-slide-up" style="animation-delay: 0.9s">
-                            <button type="submit"
-                                    class="flex-1 py-5 btn-gradient text-white font-bold text-lg rounded-xl shadow-2xl transform transition-all hover:scale-105 flex items-center justify-center space-x-3">
-                                <span>
-                                    {% if form.instance.pk %}Update Category{% else %}Create Category{% endif %}
-                                </span>
-                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                                </svg>
-                            </button>
-                            <a href="{% url 'dashboard:category_list' %}"
-                               class="flex-1 py-5 bg-white/10 border border-white/20 text-white font-medium text-lg rounded-xl text-center hover:bg-white/20 transition">
-                               Cancel
-                            </a>
-                        </div>
-                    </form>
-                </div>
+            <!-- ================= HEADER ================= -->
+            <div class="px-10 py-8 border-b bg-slate-50">
+                <h1 class="text-3xl font-semibold text-slate-800">
+                    {% if form.instance.pk %}
+                        Edit Category
+                    {% else %}
+                        Create Category
+                    {% endif %}
+                </h1>
+                <p class="text-slate-500 mt-1">
+                    Fill in the category details below
+                </p>
             </div>
 
-            <!-- Footer -->
-            <div class="text-center mt-10 text-blue-300 text-sm">
-                © 2025 <span class="font-display">ElectroMart</span> • Admin Portal
+            <!-- ================= FORM ================= -->
+            <div class="p-8 md:p-12">
+                <form method="post" enctype="multipart/form-data" class="space-y-8">
+                    {% csrf_token %}
+
+                    <!-- ===== Name & Slug ===== -->
+                    <div class="grid md:grid-cols-2 gap-6">
+                        <div>
+                            {{ form.name.label_tag }}
+                            {{ form.name|add_class:"w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-teal-300" }}
+                            {% if form.name.errors %}
+                                <p class="text-rose-600 text-sm mt-2">
+                                    {{ form.name.errors.0 }}
+                                </p>
+                            {% endif %}
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">
+                                Slug
+                            </label>
+                            <input type="text"
+                                   value="{{ form.instance.slug }}"
+                                   readonly
+                                   class="w-full px-4 py-3 rounded-xl bg-slate-100 border border-slate-200 text-slate-500 cursor-not-allowed">
+                        </div>
+                    </div>
+
+                    <!-- ===== Parent Category ===== -->
+                    <div>
+                        {{ form.parent.label_tag }}
+                        {{ form.parent|add_class:"w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-teal-300" }}
+                    </div>
+
+                    <!-- ===== Images (Modern Upload) ===== -->
+                    <div class="grid md:grid-cols-2 gap-6">
+
+                        <!-- Category Image -->
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">
+                                Category Image
+                            </label>
+
+                            <label class="group relative flex flex-col items-center justify-center
+                                           h-44 rounded-2xl border-2 border-dashed border-slate-300
+                                           bg-slate-50 cursor-pointer
+                                           hover:border-teal-500 hover:bg-teal-50
+                                           transition">
+
+                                {% if form.instance.image %}
+                                    <img src="{{ form.instance.image.url }}"
+                                         class="absolute inset-0 w-full h-full object-cover rounded-2xl">
+                                    <div class="absolute inset-0 bg-white/70 rounded-2xl"></div>
+                                {% endif %}
+
+                                <div class="relative z-10 flex flex-col items-center text-center px-4">
+                                    <svg class="w-8 h-8 text-slate-400 group-hover:text-teal-600 transition"
+                                         fill="none" stroke="currentColor" stroke-width="1.8"
+                                         viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round"
+                                              d="M12 16v-4m0 0l-3 3m3-3l3 3M4 16a4 4 0 014-4h8a4 4 0 014 4" />
+                                    </svg>
+
+                                    <p class="mt-3 text-sm font-medium text-slate-700">
+                                        Click to upload image
+                                    </p>
+                                    <p class="text-xs text-slate-500">
+                                        PNG / JPG • Max 2MB
+                                    </p>
+                                </div>
+
+                                {{ form.image|add_class:"hidden" }}
+                            </label>
+                        </div>
+
+                        <!-- Banner Image -->
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">
+                                Banner Image
+                            </label>
+
+                            <label class="group relative flex flex-col items-center justify-center
+                                           h-44 rounded-2xl border-2 border-dashed border-slate-300
+                                           bg-slate-50 cursor-pointer
+                                           hover:border-teal-500 hover:bg-teal-50
+                                           transition">
+
+                                {% if form.instance.banner %}
+                                    <img src="{{ form.instance.banner.url }}"
+                                         class="absolute inset-0 w-full h-full object-cover rounded-2xl">
+                                    <div class="absolute inset-0 bg-white/70 rounded-2xl"></div>
+                                {% endif %}
+
+                                <div class="relative z-10 flex flex-col items-center text-center px-4">
+                                    <svg class="w-8 h-8 text-slate-400 group-hover:text-teal-600 transition"
+                                         fill="none" stroke="currentColor" stroke-width="1.8"
+                                         viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round"
+                                              d="M3 7h18M3 12h18M3 17h18" />
+                                    </svg>
+
+                                    <p class="mt-3 text-sm font-medium text-slate-700">
+                                        Upload banner image
+                                    </p>
+                                    <p class="text-xs text-slate-500">
+                                        Recommended 1200×300
+                                    </p>
+                                </div>
+
+                                {{ form.banner|add_class:"hidden" }}
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- ===== Icon & Sort ===== -->
+                    <div class="grid md:grid-cols-2 gap-6">
+                        <div>
+                            {{ form.icon.label_tag }}
+                            {{ form.icon|add_class:"w-full px-4 py-3 rounded-xl border border-slate-200" }}
+                        </div>
+
+                        <div>
+                            {{ form.sort_order.label_tag }}
+                            {{ form.sort_order|add_class:"w-full px-4 py-3 rounded-xl border border-slate-200" }}
+                        </div>
+                    </div>
+
+                    <!-- ===== Toggles ===== -->
+                    <div class="flex flex-wrap gap-8 pt-4">
+                        <label class="flex items-center gap-3 cursor-pointer">
+                            {{ form.is_active }}
+                            <span class="text-slate-700 font-medium">Active</span>
+                        </label>
+
+                        <label class="flex items-center gap-3 cursor-pointer">
+                            {{ form.show_in_menu }}
+                            <span class="text-slate-700 font-medium">Show in Menu</span>
+                        </label>
+                    </div>
+
+                    <!-- ===== ACTION BUTTONS ===== -->
+                    <div class="flex flex-col sm:flex-row gap-4 pt-10">
+
+                        <button type="submit"
+                                class="flex-1 py-4 rounded-xl
+                                       bg-teal-600 hover:bg-teal-700
+                                       text-white text-lg font-semibold
+                                       shadow-md transition-all
+                                       hover:-translate-y-0.5">
+                            {% if form.instance.pk %}
+                                Update Category
+                            {% else %}
+                                Create Category
+                            {% endif %}
+                        </button>
+
+                        <a href="{% url 'dashboard:category_list' %}"
+                           class="flex-1 py-4 rounded-xl
+                                  bg-slate-100 hover:bg-slate-200
+                                  text-slate-700 text-lg font-medium
+                                  text-center transition">
+                            Cancel
+                        </a>
+                    </div>
+
+                </form>
             </div>
         </div>
     </div>
+</div>
 
-    <!-- SweetAlert2 Success Message -->
-    {% if messages %}
-        {% for message in messages %}
-            <script>
-                document.addEventListener('DOMContentLoaded', () => {
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Success!',
-                        text: '{{ message }}',
-                        toast: true,
-                        position: 'top-end',
-                        showConfirmButton: false,
-                        timer: 4000,
-                        timerProgressBar: true,
-                        background: 'rgba(17, 24, 39, 0.95)',
-                        color: '#fff'
-                    });
-                });
-            </script>
-        {% endfor %}
-    {% endif %}
+<!-- ================= FILE NAME PREVIEW ================= -->
+<script>
+document.querySelectorAll('input[type="file"]').forEach(input => {
+    input.addEventListener('change', () => {
+        const label = input.closest('label');
+        const fileName = input.files[0]?.name;
+        if (fileName) {
+            const text = label.querySelector('p');
+            if (text) text.textContent = fileName;
+        }
+    });
+});
+</script>
 
-    <!-- Particles -->
-    <script>
-        function createParticle() {
-            const p = document.createElement('div');
-            p.classList.add('particle');
-            const size = Math.random() * 70 + 20 + 'px';
-            p.style.width = size;
-            p.style.height = size;
-            p.style.left = Math.random() * 100 + '%';
-            p.style.animationDuration = Math.random() * 25 + 15 + 's';
-            document.getElementById('particles').appendChild(p);
-            setTimeout(() => p.remove(), 40000);
-        }
-        for (let i = 0; i < 15; i++) {
-            setTimeout(createParticle, i * 400);
-        }
-    </script>
-</body>
-</html>
-{% endblock content%}
+{% endblock %}
