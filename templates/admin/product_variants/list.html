@@ -1,0 +1,217 @@
+{% extends "admin/base.html" %}
+{% load i18n %}
+{% load form_extras %}
+
+{% block content %}
+
+<style>
+@keyframes fadeUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-up {
+    animation: fadeUp .4s ease-out both;
+}
+</style>
+
+<div class="min-h-screen bg-slate-50 p-6 space-y-8 animate-fade-up">
+
+    <!-- ================= HEADER ================= -->
+    <div class="flex flex-col sm:flex-row sm:justify-between gap-4">
+        <div>
+            <a href="{% url 'dashboard:product_list' %}"
+               class="text-sm text-slate-500 hover:underline">
+                ← {% trans "Back to Products" %}
+            </a>
+
+            <h1 class="text-2xl font-semibold text-slate-800 mt-1">
+                {{ product.name }} – {% trans "Variants" %}
+            </h1>
+
+            <p class="text-sm text-slate-500">
+                {% trans "Manage SKUs, pricing and stock" %}
+            </p>
+        </div>
+
+        <a href="{% url 'dashboard:product_variant_create' product.slug %}"
+           class="inline-flex items-center gap-2 px-6 py-3
+                  bg-teal-600 hover:bg-teal-700
+                  text-white rounded-xl shadow transition">
+            ➕ {% trans "Add Variant" %}
+        </a>
+    </div>
+
+    <!-- ================= STATS ================= -->
+    <div class="grid sm:grid-cols-3 gap-4">
+        <div class="bg-white p-4 rounded-xl shadow-sm">
+            <p class="text-xs text-slate-500">{% trans "Total Variants" %}</p>
+            <p class="text-2xl font-semibold">{{ total_count }}</p>
+        </div>
+
+        <div class="bg-white p-4 rounded-xl shadow-sm">
+            <p class="text-xs text-slate-500">{% trans "Active Variants" %}</p>
+            <p class="text-2xl font-semibold text-emerald-600">
+                {{ active_count }}
+            </p>
+        </div>
+
+        <div class="bg-emerald-50 p-4 rounded-xl border border-emerald-100">
+            <p class="text-sm text-emerald-700">
+                {% trans "Deactivate a variant before deleting it" %}
+            </p>
+        </div>
+    </div>
+
+    <!-- ================= FILTER ================= -->
+    <form method="get"
+          class="bg-white p-4 rounded-xl shadow-sm flex gap-3">
+        <select name="is_active"
+                class="px-4 py-2.5 rounded-lg border">
+            <option value="">{% trans "All Status" %}</option>
+            <option value="1" {% if filter_is_active == "1" %}selected{% endif %}>
+                {% trans "Active" %}
+            </option>
+            <option value="0" {% if filter_is_active == "0" %}selected{% endif %}>
+                {% trans "Inactive" %}
+            </option>
+        </select>
+
+        <button class="px-5 py-2.5 bg-teal-600 text-white rounded-lg">
+            {% trans "Apply" %}
+        </button>
+    </form>
+
+    <!-- ================= TABLE ================= -->
+    <div class="bg-white rounded-xl shadow-sm overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead class="bg-slate-100 text-slate-600">
+                <tr>
+                    <th class="p-4 text-left">SKU</th>
+                    <th class="p-4 text-center">{% trans "Price" %}</th>
+                    <th class="p-4 text-center">{% trans "Stock" %}</th>
+                    <th class="p-4 text-center">{% trans "Status" %}</th>
+                    <th class="p-4 text-center">{% trans "Actions" %}</th>
+                </tr>
+            </thead>
+
+            <tbody class="divide-y">
+            {% for variant in variants %}
+                <tr class="hover:bg-slate-50 {% if not variant.is_active %}opacity-60{% endif %}">
+
+                    <td class="p-4 font-medium">{{ variant.sku }}</td>
+
+                    <td class="p-4 text-center">
+                        {% if variant.sale_price %}
+                            <span class="text-rose-600 font-semibold">
+                                ₹{{ variant.sale_price }}
+                            </span>
+                            <del class="text-xs text-slate-400 ml-1">
+                                ₹{{ variant.price }}
+                            </del>
+                        {% else %}
+                            ₹{{ variant.price }}
+                        {% endif %}
+                    </td>
+
+                    <td class="p-4 text-center">{{ variant.stock }}</td>
+
+                    <!-- STATUS -->
+                    <td class="p-4 text-center">
+                        <button type="button"
+                                data-id="{{ variant.id }}"
+                                data-active="{{ variant.is_active|yesno:'true,false' }}"
+                                onclick="toggleVariant(this)"
+                                class="relative inline-flex h-6 w-11 items-center rounded-full
+                                       {{ variant.is_active|yesno:'bg-emerald-500,bg-slate-300' }}">
+                            <span class="inline-block h-4 w-4 bg-white rounded-full shadow
+                                         transform
+                                         {{ variant.is_active|yesno:'translate-x-6,translate-x-1' }}">
+                            </span>
+                        </button>
+                    </td>
+
+                    <!-- ACTIONS -->
+                    <td class="p-4 text-center">
+                        <div class="flex justify-center gap-2">
+                            <a href="{% url 'dashboard:product_variant_update' variant.id %}"
+                               class="px-3 py-1.5 bg-slate-100 rounded-lg hover:bg-slate-200">
+                                ✏️ {% trans "Edit" %}
+                            </a>
+
+                            {% if not variant.is_active %}
+                            <button onclick="confirmDelete({{ variant.id }})"
+                                    class="px-3 py-1.5 bg-rose-600 text-white rounded-lg hover:bg-rose-700">
+                                🗑 {% trans "Delete" %}
+                            </button>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+            {% empty %}
+                <tr>
+                    <td colspan="5" class="text-center py-16 text-slate-500">
+                        {% trans "No variants found" %}
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<script>
+const csrfToken = "{{ csrf_token }}";
+
+async function toggleVariant(btn) {
+    const id = btn.dataset.id;
+    const current = btn.dataset.active === "true";
+    const next = !current;
+
+    btn.dataset.active = next;
+    btn.classList.toggle("bg-emerald-500", next);
+    btn.classList.toggle("bg-slate-300", !next);
+    btn.querySelector("span").classList.toggle("translate-x-6", next);
+    btn.querySelector("span").classList.toggle("translate-x-1", !next);
+
+    const res = await fetch("{% url 'dashboard:product_variant_toggle_status' %}", {
+        method: "POST",
+        headers: {
+            "X-CSRFToken": csrfToken,
+            "Content-Type": "application/x-www-form-urlencoded"
+        },
+        body: "id=" + id
+    });
+
+    const data = await res.json();
+    if (!data.success) location.reload();
+}
+
+function confirmDelete(id) {
+    Swal.fire({
+        title: "{{ _('Delete this variant?') }}",
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonColor: "#dc2626",
+        confirmButtonText: "{{ _('Delete') }}"
+    }).then(result => {
+        if (result.isConfirmed) {
+            const form = document.createElement("form");
+            form.method = "POST";
+            form.action = "{% url 'dashboard:product_variant_delete' 0 %}".replace("0", id);
+
+            const csrf = document.createElement("input");
+            csrf.type = "hidden";
+            csrf.name = "csrfmiddlewaretoken";
+            csrf.value = csrfToken;
+
+            form.appendChild(csrf);
+            document.body.appendChild(form);
+            form.submit();
+        }
+    });
+}
+</script>
+
+{% endblock %}

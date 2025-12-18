@@ -1,11 +1,14 @@
 import logging
 from django.db import models
+from django.db.models import Q, Avg
 from django.utils.translation import gettext_lazy as _
 from django.urls import reverse
 from django.utils.text import slugify
 from django.utils.html import mark_safe
 from django.core.exceptions import ValidationError
 from django.utils import timezone
+from django.core.validators import MinValueValidator, MaxValueValidator
+from django.conf import settings
 
 from mptt.models import MPTTModel, TreeForeignKey
 from cloudinary.models import CloudinaryField
@@ -13,60 +16,51 @@ from cloudinary.models import CloudinaryField
 logger = logging.getLogger(__name__)
 
 
-# ======================================================
-# CATEGORY MODEL
-# ======================================================
+# =========================
+# CATEGORY MODEL (MPTT)
+# =========================
 class Category(MPTTModel):
     """
     Hierarchical product category using MPTT.
+    Example: Electronics > Mobiles > Smartphones
     """
 
-    name = models.CharField(max_length=200, verbose_name=_("Name"))
-    slug = models.SlugField(
-        max_length=250,
-        blank=True,
-        db_index=True,
-        help_text=_("Auto-generated from name")
-    )
+    name = models.CharField(max_length=200)
+    slug = models.SlugField(max_length=250, blank=True, db_index=True)
 
     parent = TreeForeignKey(
         'self',
         on_delete=models.CASCADE,
         null=True,
         blank=True,
-        related_name='children',
-        verbose_name=_("Parent Category")
+        related_name='children'
     )
 
-    # Images
     image = CloudinaryField(
         'image',
         folder='ecommerce/categories/',
         blank=True,
-        null=True,
-        transformation={'quality': 'auto', 'fetch_format': 'auto', 'width': 600},
+        null=True
     )
 
     banner = CloudinaryField(
         'banner',
         folder='ecommerce/categories/banners/',
         blank=True,
-        null=True,
-        transformation={'quality': 'auto', 'fetch_format': 'auto'},
+        null=True
     )
 
-    icon = models.CharField(max_length=100, blank=True, verbose_name=_("Icon Class"))
+    icon = models.CharField(max_length=100, blank=True)
 
     # SEO
     meta_title = models.CharField(max_length=200, blank=True)
     meta_description = models.TextField(blank=True)
 
-    # Display & status
+    # Display
     is_active = models.BooleanField(default=True)
     show_in_menu = models.BooleanField(default=True)
     sort_order = models.PositiveIntegerField(default=0)
 
-    # URL path
     path = models.CharField(
         max_length=1000,
         unique=True,
@@ -82,226 +76,316 @@ class Category(MPTTModel):
         order_insertion_by = ['sort_order', 'name']
 
     class Meta:
-        verbose_name = _("Category")
-        verbose_name_plural = _("Categories")
         ordering = ['sort_order', 'name']
-        indexes = [
-            models.Index(fields=['slug']),
-            models.Index(fields=['path']),
-            models.Index(fields=['is_active']),
-            models.Index(fields=['show_in_menu']),
-            models.Index(fields=['is_active', 'sort_order']),
-        ]
         constraints = [
             models.UniqueConstraint(
                 fields=['parent', 'name'],
                 name='unique_category_name_per_parent'
-            ),
-            models.UniqueConstraint(
-                fields=['path'],
-                name='unique_category_path'
-            ),
+            )
         ]
 
     def __str__(self):
         return self.get_full_path()
 
-    # -------------------------
-    # VALIDATION
-    # -------------------------
     def clean(self):
         if self.pk and self.parent:
             if self.parent.get_descendants(include_self=True).filter(pk=self.pk).exists():
                 raise ValidationError(_("A category cannot be its own descendant."))
 
-    # -------------------------
-    # SLUG HANDLING
-    # -------------------------
     def _generate_unique_slug(self):
         if self.slug:
             return
 
-        base_slug = slugify(self.name)
-        slug = base_slug
+        base = slugify(self.name)
+        slug = base
         counter = 1
 
         while Category.objects.filter(
             slug=slug, parent=self.parent
         ).exclude(pk=self.pk).exists():
-            slug = f"{base_slug}-{counter}"
+            slug = f"{base}-{counter}"
             counter += 1
 
         self.slug = slug
 
-    # -------------------------
-    # PATH HANDLING
-    # -------------------------
     def _build_path(self):
-        if self.parent:
-            return f"{self.parent.path}/{self.slug}".lstrip('/')
-        return self.slug
+        return f"{self.parent.path}/{self.slug}" if self.parent else self.slug
 
-    # -------------------------
-    # SAVE (SAFE FOR MPTT)
-    # -------------------------
     def save(self, *args, **kwargs):
-        is_new = self.pk is None
-        old_parent = None
-
-        if self.pk:
-            old_parent = Category.objects.get(pk=self.pk).parent
-
         self._generate_unique_slug()
         super().save(*args, **kwargs)
 
         new_path = self._build_path()
-
-        if is_new or self.path != new_path or old_parent != self.parent:
+        if self.path != new_path:
             self.path = new_path
             super().save(update_fields=['path'])
 
-            # Rebuild descendants if parent changed
-            if old_parent != self.parent:
-                for child in self.get_descendants():
-                    child.path = child._build_path()
-                    child.save(update_fields=['path'])
-
-        logger.info("Category saved: /%s", self.path)
-
-    # -------------------------
-    # HELPERS
-    # -------------------------
-    def get_absolute_url(self):
-        return reverse('category_detail', kwargs={'category_path': self.path})
+            for child in self.get_descendants():
+                child.path = child._build_path()
+                child.save(update_fields=['path'])
 
     def get_full_path(self):
         return " > ".join(
             cat.name for cat in self.get_ancestors(include_self=True)
         )
 
-    @property
-    def product_count(self):
-        # from products.models import Product
-        # return Product.objects.filter(
-        #     category__in=self.get_descendants(include_self=True),
-        #     is_active=True
-        # ).distinct().count()
-        return 0
-
-    # -------------------------
-    # ADMIN PREVIEWS
-    # -------------------------
-    def image_preview(self):
-        if self.image:
-            return mark_safe(
-                f'<img src="{self.image.url}" width="80" height="80" '
-                'style="object-fit:contain;border-radius:4px;">'
-            )
-        return _("No image")
-
-    image_preview.short_description = _("Preview")
-
-    def banner_preview(self):
-        if self.banner:
-            return mark_safe(
-                f'<img src="{self.banner.url}" width="200" height="80" '
-                'style="object-fit:cover;border-radius:4px;">'
-            )
-        return _("No banner")
-
-    banner_preview.short_description = _("Banner Preview")
+    def get_absolute_url(self):
+        return reverse('category_detail', kwargs={'category_path': self.path})
 
 
-# ======================================================
+
+# =========================
 # BRAND MODEL
-# ======================================================
+# =========================
 class Brand(models.Model):
     name = models.CharField(max_length=200, unique=True)
-    slug = models.SlugField(max_length=250, unique=True, blank=True, db_index=True)
+    slug = models.SlugField(max_length=250, unique=True, blank=True)
 
     description = models.TextField(blank=True)
-    website_url = models.URLField(blank=True, null=True)
+    website_url = models.URLField(blank=True)
 
     logo = CloudinaryField(
         'logo',
         folder='ecommerce/brands/',
         blank=True,
-        null=True,
-        transformation=[
-            {'width': 400, 'height': 400, 'crop': 'limit'},
-            {'quality': 'auto', 'format': 'webp'}
-        ],
+        null=True
     )
 
     country = models.CharField(max_length=100, blank=True)
     founded_year = models.PositiveSmallIntegerField(null=True, blank=True)
 
-    # SEO
     meta_title = models.CharField(max_length=200, blank=True)
     meta_description = models.TextField(blank=True)
 
-    # Status & display
     is_active = models.BooleanField(default=True)
     is_featured = models.BooleanField(default=False)
     priority = models.PositiveSmallIntegerField(default=0)
 
     created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        verbose_name = _("Brand")
-        verbose_name_plural = _("Brands")
         ordering = ['-is_featured', '-priority', 'name']
-        indexes = [
-            models.Index(fields=['slug']),
-            models.Index(fields=['is_active']),
-            models.Index(fields=['is_featured', 'priority']),
-        ]
 
     def __str__(self):
         return self.name
 
-    # -------------------------
-    # VALIDATION
-    # -------------------------
     def clean(self):
         if self.founded_year and self.founded_year > timezone.now().year:
             raise ValidationError(_("Founded year cannot be in the future."))
 
-    # -------------------------
-    # SAVE
-    # -------------------------
     def save(self, *args, **kwargs):
         if not self.slug:
-            base_slug = slugify(self.name)
-            slug = base_slug
+            base = slugify(self.name)
+            slug = base
             counter = 1
             while Brand.objects.filter(slug=slug).exclude(pk=self.pk).exists():
-                slug = f"{base_slug}-{counter}"
+                slug = f"{base}-{counter}"
                 counter += 1
             self.slug = slug
-
         super().save(*args, **kwargs)
-        logger.info("Brand saved: %s", self.name)
 
-    # -------------------------
-    # HELPERS
-    # -------------------------
-    def get_absolute_url(self):
-        return reverse('brand_detail', kwargs={'slug': self.slug})
+
+# =========================
+# PRODUCT MODEL
+# =========================
+class Product(models.Model):
+    """
+    Product concept (NO price, NO stock, NO images).
+    Example: iPhone 15
+    """
+
+    name = models.CharField(max_length=255)
+    slug = models.SlugField(max_length=255, unique=True, blank=True)
+
+    category = TreeForeignKey(Category, on_delete=models.PROTECT)
+    brand = models.ForeignKey(Brand, on_delete=models.PROTECT, null=True, blank=True)
+
+    short_description = models.TextField(blank=True)
+    description = models.TextField(blank=True)
+
+    meta_title = models.CharField(max_length=200, blank=True)
+    meta_description = models.TextField(blank=True)
+
+    is_active = models.BooleanField(default=True)
+    is_featured = models.BooleanField(default=False)
+
+    related_products = models.ManyToManyField('self', blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return self.name
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            base = slugify(self.name)
+            slug = base
+            i = 1
+            while Product.objects.filter(slug=slug).exclude(pk=self.pk).exists():
+                slug = f"{base}-{i}"
+                i += 1
+            self.slug = slug
+        super().save(*args, **kwargs)
 
     @property
-    def product_count(self):
-        # from products.models import Product
-        # return Product.objects.filter(brand=self, is_active=True).count()
-        return 0
+    def average_rating(self):
+        return (
+            self.reviews.filter(is_approved=True)
+            .aggregate(avg=Avg('rating'))['avg'] or 0
+        )
 
-    def logo_preview(self):
-        if self.logo:
-            return mark_safe(
-                f'<img src="{self.logo.url}" width="100" height="60" '
-                'style="object-fit:contain;">'
+
+# =========================
+# VARIANT ATTRIBUTES
+# =========================
+class VariantAttribute(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+    is_active = models.BooleanField(default=True)
+
+    def __str__(self):
+        return self.name
+
+
+class VariantAttributeValue(models.Model):
+    attribute = models.ForeignKey(
+        VariantAttribute,
+        on_delete=models.CASCADE,
+        related_name="values"
+    )
+    value = models.CharField(max_length=100)
+
+    hex_code = models.CharField(max_length=7, blank=True)
+    swatch_image = CloudinaryField('swatch', blank=True, null=True)
+
+    class Meta:
+        unique_together = ('attribute', 'value')
+
+    def __str__(self):
+        return f"{self.attribute.name}: {self.value}"
+
+
+# =========================
+# PRODUCT VARIANT
+# =========================
+class ProductVariant(models.Model):
+    product = models.ForeignKey(
+        Product,
+        on_delete=models.CASCADE,
+        related_name="variants"
+    )
+
+    sku = models.CharField(max_length=100, unique=True, db_index=True)
+
+    price = models.DecimalField(max_digits=10, decimal_places=2)
+    sale_price = models.DecimalField(
+        max_digits=10, decimal_places=2, null=True, blank=True
+    )
+
+    stock = models.PositiveIntegerField(default=0)
+
+    weight_kg = models.DecimalField(max_digits=6, decimal_places=3, null=True, blank=True)
+    length_cm = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
+    width_cm = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
+    height_cm = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
+
+    cost_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    tax_class = models.CharField(max_length=50, blank=True)
+
+    is_active = models.BooleanField(default=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def clean(self):
+        if self.sale_price and self.sale_price >= self.price:
+            raise ValidationError(_("Sale price must be less than price."))
+
+    def get_price(self):
+        return self.sale_price or self.price
+
+    def __str__(self):
+        return f"{self.product.name} ({self.sku})"
+
+
+
+# =========================
+# VARIANT → ATTRIBUTE LINK
+# =========================
+class ProductVariantAttribute(models.Model):
+    variant = models.ForeignKey(
+        ProductVariant,
+        on_delete=models.CASCADE,
+        related_name="attributes"
+    )
+    attribute = models.ForeignKey(VariantAttribute, on_delete=models.CASCADE)
+    value = models.ForeignKey(VariantAttributeValue, on_delete=models.CASCADE)
+
+    class Meta:
+        unique_together = (
+            ('variant', 'attribute'),
+            ('variant', 'value'),
+        )
+
+    def clean(self):
+        if self.value.attribute_id != self.attribute_id:
+            raise ValidationError(_("Value does not belong to attribute."))
+
+
+# =========================
+# VARIANT IMAGES
+# =========================
+class ProductVariantImage(models.Model):
+    variant = models.ForeignKey(
+        ProductVariant,
+        on_delete=models.CASCADE,
+        related_name="images"
+    )
+
+    image = CloudinaryField(
+        'image',
+        folder='ecommerce/products/variants/'
+    )
+
+    is_primary = models.BooleanField(default=False)
+    sort_order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ['sort_order']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['variant'],
+                condition=Q(is_primary=True),
+                name='unique_primary_image_per_variant'
             )
-        return _("No logo")
+        ]
 
-    logo_preview.short_description = _("Logo")
+
+# =========================
+# PRODUCT REVIEW
+# =========================
+class ProductReview(models.Model):
+    product = models.ForeignKey(
+        Product,
+        on_delete=models.CASCADE,
+        related_name="reviews"
+    )
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+
+    rating = models.PositiveSmallIntegerField(
+        validators=[
+            MinValueValidator(1),
+            MaxValueValidator(5)
+        ]
+    )
+
+    review = models.TextField(blank=True)
+    is_approved = models.BooleanField(default=False)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('product', 'user')
+
+

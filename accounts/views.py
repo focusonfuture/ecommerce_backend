@@ -12,6 +12,8 @@ from django.contrib.auth import authenticate, login
 from .models import CustomUser
 from django.utils import timezone
 from django.contrib.admin.views.decorators import staff_member_required
+from django.contrib.auth import logout
+
 
 class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
@@ -94,3 +96,17 @@ def admin_home_view(request):
         'total_staff': request.user.__class__.objects.filter(is_staff=True).count(),
     }
     return render(request, 'admin/admin_home.html', context)
+
+
+@csrf_protect
+@never_cache
+def admin_logout_view(request):
+    """
+    Secure Admin Logout View
+    Logs out admin/staff users and redirects to admin login page.
+    """
+    if request.user.is_authenticated:
+        logout(request)
+        messages.success(request, "You have been logged out successfully.")
+
+    return redirect('accounts:admin_login')

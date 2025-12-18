@@ -1,0 +1,205 @@
+{% extends "admin/base.html" %}
+{% load i18n %}
+
+{% block content %}
+
+<!-- ================= STYLES ================= -->
+<style>
+.animate-fade {
+    animation: fade .35s ease-out both;
+}
+@keyframes fade {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+</style>
+
+<div class="max-w-4xl mx-auto space-y-8 animate-fade">
+
+    <!-- ================= HEADER ================= -->
+    <div class="flex justify-between items-center">
+        <div>
+            <a href="{% url 'dashboard:variant_attribute_index' %}"
+               class="text-sm text-slate-500 hover:text-slate-700">
+                ← {% trans "Back to Attributes" %}
+            </a>
+
+            <h1 class="text-2xl font-semibold text-slate-800 mt-2">
+                {{ attribute.name }} {% trans "Values" %}
+            </h1>
+
+            <p class="text-sm text-slate-500">
+                {% trans "Manage values for this attribute" %}
+            </p>
+        </div>
+
+        <span class="px-3 py-1 rounded-full text-sm
+                     bg-slate-100 text-slate-600">
+            {{ total_values }} {% trans "values" %}
+        </span>
+    </div>
+
+    <!-- ================= ADD VALUE ================= -->
+    <form id="addValueForm"
+          class="flex flex-col sm:flex-row gap-3
+                 bg-white p-4 rounded-xl shadow-sm">
+
+        {% csrf_token %}
+
+        <input id="valueInput"
+               placeholder="{% trans 'Value (e.g. Black)' %}"
+               class="flex-1 px-4 py-3 rounded-xl border">
+
+        <div class="flex items-center gap-2">
+            <input id="hexInput"
+                   placeholder="#000000"
+                   class="w-32 px-4 py-3 rounded-xl border">
+
+            <span id="colorPreview"
+                  class="w-8 h-8 rounded-full border bg-slate-200">
+            </span>
+        </div>
+
+        <button type="submit"
+                class="px-6 py-3 bg-teal-600 hover:bg-teal-700
+                       text-white rounded-xl transition">
+            {% trans "Add" %}
+        </button>
+    </form>
+
+    <!-- ================= VALUES LIST ================= -->
+    <div class="bg-white rounded-xl shadow-sm divide-y">
+
+        {% for v in values %}
+        <div class="flex justify-between items-center p-4
+                    hover:bg-slate-50 transition">
+
+            <div class="flex items-center gap-3">
+                {% if v.hex_code %}
+                <span class="w-6 h-6 rounded-full border"
+                      style="background: {{ v.hex_code }}"></span>
+                {% endif %}
+
+                <span class="font-medium text-slate-800">
+                    {{ v.value }}
+                </span>
+            </div>
+
+            <button type="button"
+                    onclick="confirmDelete({{ v.id }}, '{{ v.value|escapejs }}')"
+                    class="text-sm text-red-600 hover:text-red-700
+                           hover:underline transition">
+                {% trans "Delete" %}
+            </button>
+        </div>
+        {% empty %}
+        <div class="p-10 text-center text-slate-500">
+            <div class="text-4xl mb-3">🎨</div>
+            {% trans "No values added yet" %}
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- ================= SCRIPTS ================= -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<script>
+const csrfToken = "{{ csrf_token }}";
+const valueInput = document.getElementById("valueInput");
+const hexInput = document.getElementById("hexInput");
+const colorPreview = document.getElementById("colorPreview");
+
+/* ---------- LIVE COLOR PREVIEW ---------- */
+hexInput.addEventListener("input", () => {
+    const val = hexInput.value.trim();
+    colorPreview.style.background =
+        /^#[0-9A-Fa-f]{6}$/.test(val) ? val : "#e5e7eb";
+});
+
+/* ---------- ADD VALUE ---------- */
+document.getElementById("addValueForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    const value = valueInput.value.trim();
+    const hex = hexInput.value.trim();
+
+    if (!value) {
+        Swal.fire("Error", "Value is required", "error");
+        return;
+    }
+
+    const res = await fetch(
+        "{% url 'dashboard:variant_value_add' attribute.id %}",
+        {
+            method: "POST",
+            headers: {
+                "X-CSRFToken": csrfToken,
+                "Content-Type": "application/x-www-form-urlencoded"
+            },
+            body: `value=${encodeURIComponent(value)}&hex_code=${encodeURIComponent(hex)}`
+        }
+    );
+
+    const data = await res.json();
+
+    if (data.success) {
+        Swal.fire({
+            toast: true,
+            position: "top-end",
+            icon: "success",
+            title: "Value added",
+            showConfirmButton: false,
+            timer: 1600
+        });
+        setTimeout(() => location.reload(), 600);
+    } else {
+        Swal.fire("Error", data.message || "Failed to add value", "error");
+    }
+});
+
+/* ---------- DELETE VALUE ---------- */
+function confirmDelete(id, name) {
+    Swal.fire({
+        title: "{% trans 'Delete value?' %}",
+        text: `"${name}" will be removed permanently.`,
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonColor: "#dc2626",
+        confirmButtonText: "{% trans 'Delete' %}",
+        cancelButtonText: "{% trans 'Cancel' %}"
+    }).then(async (result) => {
+        if (!result.isConfirmed) return;
+
+        const res = await fetch(
+            "{% url 'dashboard:variant_value_delete' %}",
+            {
+                method: "POST",
+                headers: {
+                    "X-CSRFToken": csrfToken,
+                    "Content-Type": "application/x-www-form-urlencoded"
+                },
+                body: "id=" + id
+            }
+        );
+
+        const data = await res.json();
+
+        if (data.success) {
+            Swal.fire({
+                toast: true,
+                position: "top-end",
+                icon: "success",
+                title: "Value deleted",
+                showConfirmButton: false,
+                timer: 1400
+            });
+            setTimeout(() => location.reload(), 600);
+        } else {
+            Swal.fire("Error", data.message || "Delete failed", "error");
+        }
+    });
+}
+</script>
+
+{% endblock %}
