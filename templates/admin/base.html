@@ -1,158 +1,162 @@
 {% load static %}
-
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="scroll-smooth">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ElectroMart - Admin Dashboard</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11.12.0/dist/sweetalert2.min.css">
-    <link rel="stylesheet" href="{% static 'assets/css/admin_home.css' %}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    animation: {
+                        'fade-in': 'fadeIn 0.6s ease-out forwards',
+                        'slide-up': 'slideUp 0.6s ease-out forwards',
+                        'pulse-soft': 'pulseSoft 2s infinite',
+                    },
+                    keyframes: {
+                        fadeIn: { '0%': { opacity: '0' }, '100%': { opacity: '1' } },
+                        slideUp: { '0%': { opacity: '0', transform: 'translateY(20px)' }, '100%': { opacity: '1', transform: 'translateY(0)' } },
+                        pulseSoft: { '0%, 100%': { opacity: '0.7' }, '50%': { opacity: '1' } }
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="{% static 'assets/css/admin_home.css' %}">
 </head>
-<body>
-    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+<body class="bg-gray-50 text-gray-900 antialiased">
+    <!-- Mobile Overlay -->
+    <div class="fixed inset-0 bg-black/50 z-40 lg:hidden hidden" id="sidebarOverlay"></div>
 
-    <div class="wrapper">
-        <div class="sidebar" id="sidebar" >
-            <div class="sidebar-header">
-                <div class="logo-mini">⚡</div>
-                <div class="brand-info">
-                    <h2>ElectroMart</h2>
-                    <p>Admin Panel</p>
-                </div>
-            </div>
-
-            <nav class="nav-menu">
-                <div class="nav-item">
-                    <a href="#" class="nav-link active" data-tooltip="Dashboard" aria-label="Dashboard">
-                        <span class="nav-icon">🏠</span>
-                        <span>Dashboard</span>
-                    </a>
-                </div>
-                <div class="nav-item">
-                    <a href="#" class="nav-link" data-tooltip="Products" aria-label="Products">
-                        <span class="nav-icon">📦</span>
-                        <span>Products</span>
-                    </a>
-                </div>
-                <div class="nav-item">
-                    <a href="{% url 'dashboard:brand_list'%}" class="nav-link" data-tooltip="Marketing" aria-label="Marketing">
-                        <span class="nav-icon">🏷️</span>
-                        <span>Brands</span>
-                    </a>
-                </div>
-                <div class="nav-item">
-                    <a href="{% url 'dashboard:category_list'%}" class="nav-link" data-tooltip="Marketing" aria-label="Marketing">
-                        <span class="nav-icon">🗂️</span>
-                        <span>Category</span>
-                    </a>
-                </div>
-                <div class="nav-item">
-                    <a href="#" class="nav-link" data-tooltip="Orders" aria-label="Orders">
-                        <span class="nav-icon">📋</span>
-                        <span>Orders</span>
-                    </a>
-                </div>
-                <div class="nav-item">
-                    <a href="#" class="nav-link" data-tooltip="Customers" aria-label="Customers">
-                        <span class="nav-icon">👥</span>
-                        <span>Customers</span>
-                    </a>
-                </div>
-                <div class="nav-item">
-                    <a href="" class="nav-link" data-tooltip="Analytics" aria-label="Analytics">
-                        <span class="nav-icon">📊</span>
-                        <span>Variants</span>
-                    </a>
-                </div>
-                <div class="nav-item">
-                    <a href="#" class="nav-link" data-tooltip="Payments" aria-label="Payments">
-                        <span class="nav-icon">💳</span>
-                        <span>Payments</span>
-                    </a>
-                </div>
-                
-                <div class="nav-item">
-                    <a href="#" class="nav-link" data-tooltip="Settings" aria-label="Settings">
-                        <span class="nav-icon">⚙️</span>
-                        <span>Settings</span>
-                    </a>
-                </div>
-                
-                <div class="nav-item">
-                    <a href="{% url 'admin_logout' %}" class="nav-link" data-tooltip="Logout" aria-label="Logout">
-                        <span class="nav-icon">🚪</span>
-                        <span>Logout</span>
-                    </a>
-                </div>
-            </nav>
-        </div>
-
-        <div class="main-content" id="mainContent">
-            <header class="header">
-                <div class="header-left">
-                    <button class="menu-toggle" id="menuToggle" aria-label="Toggle sidebar navigation">☰</button>
-                    <div class="breadcrumb">
-                        <span>Dashboard</span>
-                        <span>•</span>
-                        <span>Overview</span>
+    <div class="flex h-screen overflow-hidden">
+        <!-- Sidebar -->
+        <aside id="sidebar" class="fixed lg:static inset-y-0 left-0 z-50 w-72 lg:w-64 xl:w-72 bg-gradient-to-b from-slate-900 to-slate-800 text-white transform -translate-x-full lg:translate-x-0 transition-transform duration-300 ease-in-out">
+            <div class="flex items-center justify-between p-6 border-b border-white/10">
+                <div class="flex items-center space-x-4">
+                    <div class="text-3xl">⚡</div>
+                    <div>
+                        <h2 class="text-xl font-bold">ElectroMart</h2>
+                        <p class="text-xs opacity-75">Admin Panel</p>
                     </div>
                 </div>
+                <button class="lg:hidden text-xl" id="closeSidebar">✕</button>
+            </div>
 
-                <div class="search-container">
-                    <input type="text" class="search-input" placeholder="Search anything..." aria-label="Search">
-                    <span class="search-icon">🔍</span>
-                </div>
+            <nav class="p-4 space-y-2">
+                {% comment %} Add 'active' class dynamically via JS or Django {% endcomment %}
+                <a href="#" class="nav-link flex items-center space-x-4 px-4 py-3 rounded-xl hover:bg-white/10 transition-all duration-200 active">
+                    <span class="text-xl">🏠</span>
+                    <span class="font-medium">Dashboard</span>
+                </a>
+                <a href="{% url 'dashboard:product_list' %}" class="nav-link flex items-center space-x-4 px-4 py-3 rounded-xl hover:bg-white/10 transition-all duration-200">
+                    <span class="text-xl">📦</span>
+                    <span class="font-medium">Products</span>
+                </a>
+                <a href="{% url 'dashboard:variant_attribute_index' %}" class="nav-link flex items-center space-x-4 px-4 py-3 rounded-xl hover:bg-white/10 transition-all duration-200">
+                    <span class="text-xl">🔀</span>
+                    <span class="font-medium">Variants</span>
+                </a>
+                <a href="#" class="nav-link flex items-center space-x-4 px-4 py-3 rounded-xl hover:bg-white/10 transition-all duration-200">
+                    <span class="text-xl">🎲</span>
+                    <span class="font-medium">Product Variant</span>
+                </a>
+                <a href="{% url 'dashboard:brand_list' %}" class="nav-link flex items-center space-x-4 px-4 py-3 rounded-xl hover:bg-white/10 transition-all duration-200">
+                    <span class="text-xl">🏷️</span>
+                    <span class="font-medium">Brands</span>
+                </a>
+                <a href="{% url 'dashboard:category_list' %}" class="nav-link flex items-center space-x-4 px-4 py-3 rounded-xl hover:bg-white/10 transition-all duration-200">
+                    <span class="text-xl">🗂️</span>
+                    <span class="font-medium">Categories</span>
+                </a>
+                <a href="#" class="nav-link flex items-center space-x-4 px-4 py-3 rounded-xl hover:bg-white/10 transition-all duration-200">
+                    <span class="text-xl">📋</span>
+                    <span class="font-medium">Orders</span>
+                </a>
+                <a href="#" class="nav-link flex items-center space-x-4 px-4 py-3 rounded-xl hover:bg-white/10 transition-all duration-200">
+                    <span class="text-xl">👥</span>
+                    <span class="font-medium">Customers</span>
+                </a>
+                
+                <a href="#" class="nav-link flex items-center space-x-4 px-4 py-3 rounded-xl hover:bg-white/10 transition-all duration-200">
+                    <span class="text-xl">⚙️</span>
+                    <span class="font-medium">Settings</span>
+                </a>
+                <a href="{% url 'accounts:admin_logout' %}" class="nav-link flex items-center space-x-4 px-4 py-3 rounded-xl hover:bg-red-500/20 transition-all duration-200 text-red-400">
+                    <span class="text-xl">🚪</span>
+                    <span class="font-medium">Logout</span>
+                </a>
+            </nav>
+        </aside>
 
-                <div class="header-right">
-                    <button class="notification-btn" aria-label="Notifications">
-                        🔔
-                        <span class="notification-badge"></span>
-                    </button>
+        <!-- Main Content -->
+        <div class="flex-1 flex flex-col overflow-hidden">
+            <!-- Header -->
+            <header class="bg-white/80 backdrop-blur-md border-b border-gray-200 sticky top-0 z-30">
+                <div class="flex items-center justify-between px-6 py-4">
+                    <div class="flex items-center space-x-6">
+                        <button id="menuToggle" class="text-2xl text-gray-600 hover:bg-gray-100 rounded-lg p-2 transition">
+                            <i class="fas fa-bars"></i>
+                        </button>
+                        <div class="text-sm text-gray-600">
+                            <span>Dashboard</span>
+                            <span class="mx-2">•</span>
+                            <span class="font-medium text-gray-900">Overview</span>
+                        </div>
+                    </div>
 
-                    <div class="user-profile" role="button" aria-label="User profile">
-                        <div class="user-avatar">AD</div>
-                        <div class="user-info">
-                            <h4>Admin User</h4>
-                            <p>Super Admin</p>
+                    <div class="flex items-center space-x-6">
+                        <div class="hidden md:block relative">
+                            <input type="text" placeholder="Search anything..." class="w-80 pl-12 pr-4 py-3 rounded-xl border border-gray-200 focus:border-indigo-500 focus:outline-none transition">
+                            <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                        </div>
+
+                        <button class="relative p-3 rounded-xl hover:bg-gray-100 transition" id="notificationBtn">
+                            <i class="fas fa-bell text-xl text-gray-600"></i>
+                            <span class="absolute top-1 right-1 w-3 h-3 bg-red-500 rounded-full animate-pulse"></span>
+                        </button>
+
+                        <div class="flex items-center space-x-4 cursor-pointer hover:bg-gray-100 rounded-xl p-2 transition" id="userProfile">
+                            <div class="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold">AD</div>
+                            <div class="hidden md:block">
+                                <p class="font-medium">Admin User</p>
+                                <p class="text-xs text-gray-500">Super Admin</p>
+                            </div>
                         </div>
                     </div>
                 </div>
             </header>
 
             <!-- Page Content -->
-            <main class="dashboard-content p-6">
+            <main class="flex-1 overflow-y-auto p-6 lg:p-8">
                 {% block content %}
-                {% endblock content %}
+                {% endblock %}
             </main>
-
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.12.0/dist/sweetalert2.all.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="{% static 'assets/js/admin_home.js' %}"></script>
-    {% if messages %}
-<script>
-    document.addEventListener("DOMContentLoaded", function () {
-        {% for message in messages %}
-            Swal.fire({
-                toast: true,
-                position: 'top-end',
-                icon: '{% if message.tags == "success" %}success{% elif message.tags == "error" %}error{% else %}info{% endif %}',
-                title: '{{ message|escapejs }}',
-                showConfirmButton: false,
-                timer: 3000,
-                timerProgressBar: true,
-                customClass: {
-                    popup: 'swal2-sm'
-                }
-            });
-        {% endfor %}
-    });
-</script>
-{% endif %}
 
+    {% if messages %}
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            {% for message in messages %}
+                Swal.fire({
+                    toast: true,
+                    position: 'top-end',
+                    icon: '{% if message.tags == "success" %}success{% elif message.tags == "error" %}error{% else %}info{% endif %}',
+                    title: '{{ message|escapejs }}',
+                    timer: 3000,
+                    timerProgressBar: true,
+                    showConfirmButton: false
+                });
+            {% endfor %}
+        });
+    </script>
+    {% endif %}
 </body>
 </html>

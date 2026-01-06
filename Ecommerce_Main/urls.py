@@ -11,8 +11,6 @@ def redirect_to_custom_admin_login(request):
 
 urlpatterns = [
     path('', include('accounts.urls')),  # better: move admin_login here or use view
-    path('admin/logout/', auth_views.LogoutView.as_view(), name='admin_logout'),
-
     path('api/auth/', include('accounts.urls')),  # Clean prefix
 
     path('', include('products.urls')),

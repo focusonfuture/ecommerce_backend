@@ -4,17 +4,17 @@ import logging
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
-from django.db import transaction
+from django.db import transaction,IntegrityError
 from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse_lazy
 from django.utils.translation import gettext_lazy as _
-from django.views.generic import ListView, CreateView, UpdateView, DeleteView
+from django.views.generic import ListView, CreateView, UpdateView, DeleteView,TemplateView
 from django.http import JsonResponse, HttpResponseBadRequest
 from django.views.decorators.http import require_POST
 from django.contrib.auth.decorators import login_required, user_passes_test
 
-from .models import Category, Brand
+from .models import *
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +28,7 @@ def staff_required(user):
 
 def has_products(obj):
     """Safe check for related products (future-proof)."""
-    return hasattr(obj, "product_set") and obj.product_set.exists()
+    return hasattr(obj, "products") and obj.products.exists()
 
 
 def toggle_field(obj, field):
@@ -73,6 +73,15 @@ BRAND_FIELDS = (
     "is_active", "is_featured", "priority",
 )
 
+PRODUCT_FIELDS = (
+    "name", "category", "brand",
+    "short_description", "description",
+    "meta_title", "meta_description",
+    "is_active", "is_featured",
+    "related_products",
+)
+
+
 
 # ==================================================
 # CATEGORY AJAX ACTIONS
@@ -113,7 +122,7 @@ def soft_delete_category(request):
 
     category = get_object_or_404(Category, id=obj_id)
 
-    if category.children.exists():
+    if category.children.filter(is_active=True).exists():
         return JsonResponse({"success": False, "message": _("Category has subcategories")})
 
     if has_products(category):
@@ -260,7 +269,7 @@ class CategoryDeleteView(LoginRequiredMixin, StaffRequiredMixin, DeleteView):
             messages.error(request, _("Deactivate category before permanent deletion."))
             return redirect(self.success_url)
 
-        if category.children.exists() or has_products(category):
+        if category.children.filter(is_active=True).exists() or has_products(category):
             messages.error(request, _("Cannot delete category with dependencies."))
             return redirect(self.success_url)
 
@@ -278,7 +287,7 @@ class BrandListView(LoginRequiredMixin, StaffRequiredMixin, ListView):
     paginate_by = 50
 
     def get_queryset(self):
-        qs = Brand.objects.all()
+        qs = Brand.objects.prefetch_related("products")
 
         search = self.request.GET.get("search")
         if search:
@@ -341,3 +350,530 @@ class BrandDeleteView(LoginRequiredMixin, StaffRequiredMixin, DeleteView):
 
         logger.warning("Brand permanently deleted: %s by %s", brand, request.user)
         return super().delete(request, *args, **kwargs)
+
+
+
+# ==================================================
+# PRODUCT AJAX ACTIONS
+# ==================================================@login_required
+@user_passes_test(staff_required)
+@require_POST
+def toggle_product_status(request):
+    obj_id = get_post_id(request)
+    if not obj_id:
+        return HttpResponseBadRequest("Missing product id")
+
+    product = get_object_or_404(Product, id=obj_id)
+    toggle_field(product, "is_active")
+
+    return JsonResponse({
+        "success": True,
+        "is_active": product.is_active
+    })
+
+
+@login_required
+@user_passes_test(staff_required)
+@require_POST
+def toggle_product_featured(request):
+    obj_id = get_post_id(request)
+    if not obj_id:
+        return HttpResponseBadRequest("Missing product id")
+
+    product = get_object_or_404(Product, id=obj_id)
+    toggle_field(product, "is_featured")
+
+    return JsonResponse({
+        "success": True,
+        "is_featured": product.is_featured
+    })
+
+
+# ==================================================
+# PRODUCT LIST VIEW
+# ==================================================
+class ProductListView(LoginRequiredMixin, StaffRequiredMixin, ListView):
+    model = Product
+    template_name = "admin/products/list.html"
+    context_object_name = "products"
+    paginate_by = 50
+
+    def get_queryset(self):
+        qs = (
+            Product.objects
+            .select_related("category", "brand")
+            .prefetch_related("variants")
+        )
+
+        search = self.request.GET.get("search")
+        if search:
+            qs = qs.filter(
+                Q(name__icontains=search) |
+                Q(category__name__icontains=search) |
+                Q(brand__name__icontains=search)
+            )
+
+        is_active = self.request.GET.get("is_active")
+        if is_active in ("0", "1"):
+            qs = qs.filter(is_active=(is_active == "1"))
+
+        is_featured = self.request.GET.get("is_featured")
+        if is_featured in ("0", "1"):
+            qs = qs.filter(is_featured=(is_featured == "1"))
+
+        return qs.order_by("-created_at")
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        context.update({
+            "title": _("Products"),
+            "search_query": self.request.GET.get("search", ""),
+            "filter_is_active": self.request.GET.get("is_active", ""),
+            "filter_is_featured": self.request.GET.get("is_featured", ""),
+
+            "total_count": Product.objects.count(),
+            "active_count": Product.objects.filter(is_active=True).count(),
+        })
+
+        return context
+
+# ==================================================
+# PRODUCT CREATE VIEW
+# ==================================================
+class ProductCreateView(LoginRequiredMixin, StaffRequiredMixin, CreateView):
+    model = Product
+    template_name = "admin/products/form.html"
+    success_url = reverse_lazy("dashboard:product_list")
+    fields = PRODUCT_FIELDS
+
+    @transaction.atomic
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        messages.success(self.request, _("Product created successfully."))
+        logger.info(
+            "Product created: %s (ID=%s) by %s",
+            self.object, self.object.id, self.request.user
+        )
+        return response
+
+# ==================================================
+# PRODUCT UPDATE VIEW
+# ==================================================
+class ProductUpdateView(LoginRequiredMixin, StaffRequiredMixin, UpdateView):
+    model = Product
+    template_name = "admin/products/form.html"
+    success_url = reverse_lazy("dashboard:product_list")
+    fields = PRODUCT_FIELDS
+    slug_field = "slug"
+    slug_url_kwarg = "slug"
+
+    @transaction.atomic
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        messages.success(self.request, _("Product updated successfully."))
+        logger.info(
+            "Product updated: %s (ID=%s) by %s",
+            self.object, self.object.id, self.request.user
+        )
+        return response
+
+# ==================================================
+# PRODUCT DELETE VIEW (HARD DELETE)
+# ==================================================
+class ProductDeleteView(LoginRequiredMixin, StaffRequiredMixin, DeleteView):
+    model = Product
+    success_url = reverse_lazy("dashboard:product_list")
+    slug_field = "slug"
+    slug_url_kwarg = "slug"
+
+    @transaction.atomic
+    def delete(self, request, *args, **kwargs):
+        product = self.get_object()
+
+        if product.is_active:
+            messages.error(
+                request,
+                _("Deactivate product before permanent deletion.")
+            )
+            return redirect(self.success_url)
+
+        if product.variants.filter(is_active=True).exists():
+            messages.error(
+                request,
+                _("Cannot delete product with active variants.")
+            )
+            return redirect(self.success_url)
+
+        logger.warning(
+            "Product permanently deleted: %s (ID=%s) by %s",
+            product, product.id, request.user
+        )
+        return super().delete(request, *args, **kwargs)
+
+
+# ==================================================
+# VariantAttribute Views
+# ==================================================
+class VariantAttributeListView(LoginRequiredMixin, StaffRequiredMixin, ListView):
+    model = VariantAttribute
+    template_name = "admin/variant_attributes/index.html"
+    context_object_name = "attributes"
+    paginate_by = 20
+
+    def get_queryset(self):
+        qs = VariantAttribute.objects.prefetch_related("values")
+
+        search = self.request.GET.get("search", "").strip()
+        if search:
+            qs = qs.filter(name__icontains=search)
+
+        is_active = self.request.GET.get("is_active")
+        if is_active in ("0", "1"):
+            qs = qs.filter(is_active=(is_active == "1"))
+
+        return qs.order_by("name")
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context.update({
+            "search_query": self.request.GET.get("search", ""),
+            "filter_is_active": self.request.GET.get("is_active", ""),
+            "total_count": VariantAttribute.objects.count(),
+            "active_count": VariantAttribute.objects.filter(is_active=True).count(),
+        })
+        return context
+
+@login_required
+@user_passes_test(lambda u: u.is_staff)
+@require_POST
+def create_variant_attribute(request):
+    name = request.POST.get("name", "").strip()
+
+    if not name:
+        return JsonResponse({
+            "success": False,
+            "message": _("Attribute name is required.")
+        }, status=400)
+
+    if VariantAttribute.objects.filter(name__iexact=name).exists():
+        return JsonResponse({
+            "success": False,
+            "message": _("Attribute already exists.")
+        }, status=409)
+
+    try:
+        VariantAttribute.objects.create(name=name)
+    except IntegrityError:
+        return JsonResponse({
+            "success": False,
+            "message": _("Unable to create attribute.")
+        }, status=500)
+
+    return JsonResponse({"success": True})
+
+
+@login_required
+@user_passes_test(lambda u: u.is_staff)
+@require_POST
+def toggle_variant_attribute_status(request):
+    attr_id = request.POST.get("id")
+
+    if not attr_id:
+        return JsonResponse({"success": False, "message": "Missing id"}, status=400)
+
+    attribute = get_object_or_404(VariantAttribute, id=attr_id)
+
+    attribute.is_active = not attribute.is_active
+    attribute.save(update_fields=["is_active"])
+
+    return JsonResponse({
+        "success": True,
+        "is_active": attribute.is_active
+    })
+
+
+class VariantAttributeManageValuesView(LoginRequiredMixin, StaffRequiredMixin, TemplateView):
+    template_name = "admin/variant_attributes/manage_values.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        attribute = get_object_or_404(VariantAttribute, pk=self.kwargs["pk"])
+
+        context.update({
+            "attribute": attribute,
+            "values": attribute.values.all().order_by("value"),
+            "total_values": attribute.values.count(),
+        })
+        return context
+
+
+@login_required
+@user_passes_test(lambda u: u.is_staff)
+@require_POST
+def add_variant_attribute_value(request, pk):
+    attribute = get_object_or_404(VariantAttribute, pk=pk)
+
+    value = request.POST.get("value", "").strip()
+    hex_code = request.POST.get("hex_code", "").strip()
+
+    if not value:
+        return JsonResponse({
+            "success": False,
+            "message": _("Value is required.")
+        }, status=400)
+
+    if attribute.values.filter(value__iexact=value).exists():
+        return JsonResponse({
+            "success": False,
+            "message": _("This value already exists.")
+        }, status=409)
+
+    try:
+        VariantAttributeValue.objects.create(
+            attribute=attribute,
+            value=value,
+            hex_code=hex_code
+        )
+    except IntegrityError:
+        return JsonResponse({
+            "success": False,
+            "message": _("Unable to save value.")
+        }, status=500)
+
+    return JsonResponse({"success": True})
+
+
+@login_required
+@user_passes_test(lambda u: u.is_staff)
+@require_POST
+def delete_variant_attribute_value(request):
+    value_id = request.POST.get("id")
+
+    if not value_id:
+        return JsonResponse({"success": False, "message": "Missing id"}, status=400)
+
+    value = get_object_or_404(VariantAttributeValue, id=value_id)
+
+    value.delete()
+
+    return JsonResponse({"success": True})
+
+
+
+# ==================================================
+# PRODUCT VARIANT AJAX ACTIONS
+# ==================================================
+@login_required
+@user_passes_test(staff_required)
+@require_POST
+def toggle_variant_status(request):
+    """
+    Toggle ProductVariant active/inactive state.
+    """
+    variant_id = request.POST.get("id")
+
+    if not variant_id:
+        return JsonResponse(
+            {"success": False, "message": _("Missing variant id")},
+            status=400
+        )
+
+    variant = get_object_or_404(ProductVariant, id=variant_id)
+
+    variant.is_active = not variant.is_active
+    variant.save(update_fields=["is_active"])
+
+    return JsonResponse({
+        "success": True,
+        "is_active": variant.is_active
+    })
+
+# ==================================================
+# PRODUCT VARIANT LIST VIEW
+# ==================================================
+class ProductVariantListView(LoginRequiredMixin, StaffRequiredMixin, ListView):
+    """
+    List all variants for a given product.
+    """
+    model = ProductVariant
+    template_name = "admin/product_variants/list.html"
+    context_object_name = "variants"
+    paginate_by = 30
+
+    def get_queryset(self):
+        self.product = get_object_or_404(
+            Product,
+            slug=self.kwargs["slug"]
+        )
+
+        qs = (
+            ProductVariant.objects
+            .filter(product=self.product)
+            .order_by("-created_at")
+        )
+
+        is_active = self.request.GET.get("is_active")
+        if is_active in ("0", "1"):
+            qs = qs.filter(is_active=(is_active == "1"))
+
+        return qs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        context.update({
+            "product": self.product,
+            "filter_is_active": self.request.GET.get("is_active", ""),
+            "total_count": self.product.variants.count(),
+            "active_count": self.product.variants.filter(is_active=True).count(),
+        })
+        return context
+
+
+# ==================================================
+# PRODUCT VARIANT CREATE VIEW
+# ==================================================
+class ProductVariantCreateView(LoginRequiredMixin, StaffRequiredMixin, CreateView):
+    """
+    Create a new variant under a product.
+    """
+    model = ProductVariant
+    template_name = "admin/product_variants/form.html"
+    fields = (
+        "sku", "price", "sale_price", "stock",
+        "weight_kg", "length_cm", "width_cm", "height_cm",
+        "cost_price", "tax_class", "is_active",
+    )
+
+    def dispatch(self, request, *args, **kwargs):
+        self.product = get_object_or_404(Product, slug=kwargs["slug"])
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["product"] = self.product
+        return context
+
+    def form_valid(self, form):
+        form.instance.product = self.product
+        messages.success(self.request, _("Variant created successfully."))
+        return super().form_valid(form)
+
+    def get_success_url(self):
+        return reverse_lazy(
+            "dashboard:product_variant_list",
+            kwargs={"slug": self.product.slug}
+        )
+
+    @transaction.atomic
+    def form_valid(self, form):
+        form.instance.product = self.product
+
+        try:
+            form.instance.full_clean()
+            response = super().form_valid(form)
+        except ValidationError as e:
+            form.add_error(None, e)
+            return self.form_invalid(form)
+        except IntegrityError:
+            form.add_error("sku", _("SKU must be unique."))
+            return self.form_invalid(form)
+
+        messages.success(self.request, _("Variant created successfully."))
+        logger.info(
+            "Variant created: %s for product %s by %s",
+            self.object.sku,
+            self.product,
+            self.request.user
+        )
+        return response
+
+
+# ==================================================
+# PRODUCT VARIANT UPDATE VIEW
+# ==================================================
+class ProductVariantUpdateView(LoginRequiredMixin, StaffRequiredMixin, UpdateView):
+    """
+    Update an existing product variant.
+    """
+    model = ProductVariant
+    template_name = "admin/product_variants/form.html"
+    fields = (
+        "sku", "price", "sale_price", "stock",
+        "weight_kg", "length_cm", "width_cm", "height_cm",
+        "cost_price", "tax_class", "is_active",
+    )
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["product"] = self.object.product
+        return context
+
+    def get_success_url(self):
+        return reverse_lazy(
+            "dashboard:product_variant_list",
+            kwargs={"slug": self.object.product.slug}
+        )
+
+    @transaction.atomic
+    def form_valid(self, form):
+        try:
+            form.instance.full_clean()
+            response = super().form_valid(form)
+        except ValidationError as e:
+            form.add_error(None, e)
+            return self.form_invalid(form)
+        except IntegrityError:
+            form.add_error("sku", _("SKU must be unique."))
+            return self.form_invalid(form)
+
+        messages.success(self.request, _("Variant updated successfully."))
+        logger.info(
+            "Variant updated: %s (ID=%s) by %s",
+            self.object.sku,
+            self.object.id,
+            self.request.user
+        )
+        return response
+
+
+
+# ==================================================
+# PRODUCT VARIANT DELETE VIEW
+# ==================================================
+class ProductVariantDeleteView(LoginRequiredMixin, StaffRequiredMixin, DeleteView):
+    """
+    Permanently delete a product variant.
+    Allowed only if variant is inactive.
+    """
+    model = ProductVariant
+
+    def get_success_url(self):
+        return reverse_lazy(
+            "dashboard:product_variant_list",
+            kwargs={"slug": self.object.product.slug}
+        )
+
+    @transaction.atomic
+    def delete(self, request, *args, **kwargs):
+        variant = self.get_object()
+
+        if variant.is_active:
+            messages.error(
+                request,
+                _("Deactivate variant before deletion.")
+            )
+            return redirect(self.get_success_url())
+
+        logger.warning(
+            "Variant permanently deleted: %s (ID=%s) by %s",
+            variant.sku,
+            variant.id,
+            request.user
+        )
+
+        return super().delete(request, *args, **kwargs)
+
+

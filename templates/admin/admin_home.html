@@ -1,113 +1,103 @@
 {% extends "admin/base.html" %}
-
-{% block title %}Dashboard - ElectroMart Admin Panel{% endblock %}
+{% block title %}Dashboard - ElectroMart Admin{% endblock %}
 
 {% block content %}
-<div class="dashboard-content">
-    <div class="welcome-section">
-        <h1>Welcome back, Admin! 👋</h1>
-        <p>Here's what's happening with your store today.</p>
-    </div>
-
-    <div class="stats-grid">
-        <div class="stat-card">
-            <div class="stat-header">
-                <div class="stat-icon sales">
-                    <i class="fas fa-indian-rupee-sign"></i>
-                </div>
-                <div class="stat-trend up">+12.5%</div>
+<div class="max-w-7xl mx-auto space-y-8">
+    <!-- Welcome -->
+    <div class="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 rounded-3xl p-8 text-white animate-fade-in">
+        <h1 class="text-4xl font-bold mb-2">Welcome back, Admin! 👋</h1>
+        <p class="text-lg opacity-90">Here's what's happening with your store today.</p>
+        <div class="mt-8 flex flex-wrap gap-4">
+            <div class="bg-white/20 backdrop-blur-sm rounded-2xl px-6 py-4">
+                <p class="text-sm opacity-90">Total Revenue</p>
+                <p class="text-3xl font-bold">₹2.8M</p>
             </div>
-            <div class="stat-value">₹2,45,890</div>
-            <div class="stat-label">Total Sales</div>
-        </div>
-
-        <div class="stat-card">
-            <div class="stat-header">
-                <div class="stat-icon orders">📦</div>
-                <div class="stat-trend up">+8.2%</div>
+            <div class="bg-white/20 backdrop-blur-sm rounded-2xl px-6 py-4">
+                <p class="text-sm opacity-90">Growth</p>
+                <p class="text-3xl font-bold text-green-300">+18.2%</p>
             </div>
-            <div class="stat-value">1,234</div>
-            <div class="stat-label">Total Orders</div>
-        </div>
-
-        <div class="stat-card">
-            <div class="stat-header">
-                <div class="stat-icon customers">👥</div>
-                <div class="stat-trend up">+15.3%</div>
-            </div>
-            <div class="stat-value">5,678</div>
-            <div class="stat-label">Total Customers</div>
-        </div>
-
-        <div class="stat-card">
-            <div class="stat-header">
-                <div class="stat-icon revenue">📈</div>
-                <div class="stat-trend down">-2.1%</div>
-            </div>
-            <div class="stat-value">₹45,230</div>
-            <div class="stat-label">Monthly Revenue</div>
         </div>
     </div>
 
-    <div class="charts-section">
-        <div class="chart-card">
-            <div class="chart-header">
-                <h3 class="chart-title">Sales Analytics</h3>
-                <select style="padding: 6px 12px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 14px;" aria-label="Select time range">
+    <!-- Stats Grid -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        {% comment %} Reusable stat card with animation delay {% endcomment %}
+        <div class="bg-white rounded-2xl shadow-lg p-6 hover:shadow-xl transition-all duration-300 animate-slide-up" style="animation-delay: 0.1s;">
+            <div class="flex items-center justify-between mb-4">
+                <div class="p-4 bg-emerald-100 rounded-xl text-emerald-600 text-2xl">₹</div>
+                <span class="text-sm font-medium text-green-600 bg-green-100 px-3 py-1 rounded-full">+12.5%</span>
+            </div>
+            <p class="text-3xl font-bold text-gray-800">₹2,45,890</p>
+            <p class="text-gray-500 mt-1">Total Sales</p>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-lg p-6 hover:shadow-xl transition-all duration-300 animate-slide-up" style="animation-delay: 0.2s;">
+            <div class="flex items-center justify-between mb-4">
+                <div class="p-4 bg-blue-100 rounded-xl text-blue-600 text-2xl">📦</div>
+                <span class="text-sm font-medium text-green-600 bg-green-100 px-3 py-1 rounded-full">+8.2%</span>
+            </div>
+            <p class="text-3xl font-bold text-gray-800">1,234</p>
+            <p class="text-gray-500 mt-1">Total Orders</p>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-lg p-6 hover:shadow-xl transition-all duration-300 animate-slide-up" style="animation-delay: 0.3s;">
+            <div class="flex items-center justify-between mb-4">
+                <div class="p-4 bg-amber-100 rounded-xl text-amber-600 text-2xl">👥</div>
+                <span class="text-sm font-medium text-green-600 bg-green-100 px-3 py-1 rounded-full">+15.3%</span>
+            </div>
+            <p class="text-3xl font-bold text-gray-800">5,678</p>
+            <p class="text-gray-500 mt-1">Total Customers</p>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-lg p-6 hover:shadow-xl transition-all duration-300 animate-slide-up" style="animation-delay: 0.4s;">
+            <div class="flex items-center justify-between mb-4">
+                <div class="p-4 bg-purple-100 rounded-xl text-purple-600 text-2xl">📈</div>
+                <span class="text-sm font-medium text-red-600 bg-red-100 px-3 py-1 rounded-full">-2.1%</span>
+            </div>
+            <p class="text-3xl font-bold text-gray-800">₹45,230</p>
+            <p class="text-gray-500 mt-1">Monthly Revenue</p>
+        </div>
+    </div>
+
+    <!-- Charts & Activity -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div class="lg:col-span-2 bg-white rounded-2xl shadow-lg p-6 animate-slide-up" style="animation-delay: 0.5s;">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-xl font-bold">Sales Analytics</h3>
+                <select class="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:border-indigo-500">
                     <option>Last 7 days</option>
                     <option>Last 30 days</option>
                     <option>Last 3 months</option>
                 </select>
             </div>
-            <div class="chart-placeholder">📊 Sales Chart Coming Soon</div>
+            <div class="h-80 bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl flex items-center justify-center text-gray-500 text-lg border-2 border-dashed border-gray-300">
+                📊 Chart integration coming soon (Chart.js / ApexCharts)
+            </div>
         </div>
 
-        <div class="chart-card">
-            <div class="chart-header">
-                <h3 class="chart-title">Top Categories</h3>
-            </div>
-            <div class="chart-placeholder">🥧 Category Chart Coming Soon</div>
-        </div>
-    </div>
-
-    <div class="activity-section">
-        <div class="activity-header">
-            <h3 class="activity-title">Recent Activity</h3>
-        </div>
-        <div class="activity-list">
-            <div class="activity-item">
-                <div class="activity-icon" style="background: #10b981;">✅</div>
-                <div class="activity-content">
-                    <div class="activity-text">New order #1234 received from John Doe</div>
-                    <div class="activity-time">2 minutes ago</div>
+        <div class="bg-white rounded-2xl shadow-lg p-6 animate-slide-up" style="animation-delay: 0.6s;">
+            <h3 class="text-xl font-bold mb-6">Recent Activity</h3>
+            <div class="space-y-4">
+                <div class="flex items-start space-x-4">
+                    <div class="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center text-white">✅</div>
+                    <div>
+                        <p class="font-medium">New order #1234 from John Doe</p>
+                        <p class="text-sm text-gray-500">2 minutes ago</p>
+                    </div>
                 </div>
-            </div>
-            <div class="activity-item">
-                <div class="activity-icon" style="background: #3b82f6;">👤</div>
-                <div class="activity-content">
-                    <div class="activity-text">New customer registered - Sarah Wilson</div>
-                    <div class="activity-time">15 minutes ago</div>
+                <div class="flex items-start space-x-4">
+                    <div class="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white">👤</div>
+                    <div>
+                        <p class="font-medium">New customer: Sarah Wilson</p>
+                        <p class="text-sm text-gray-500">15 minutes ago</p>
+                    </div>
                 </div>
-            </div>
-            <div class="activity-item">
-                <div class="activity-icon" style="background: #f59e0b;">📦</div>
-                <div class="activity-content">
-                    <div class="activity-text">Product "iPhone 15" stock is running low</div>
-                    <div class="activity-time">1 hour ago</div>
-                </div>
-            </div>
-            <div class="activity-item">
-                <div class="activity-icon" style="background: #8b5cf6;">💳</div>
-                <div class="activity-content">
-                    <div class="activity-text">Payment of ₹12,450 received</div>
-                    <div class="activity-time">2 hours ago</div>
-                </div>
-            </div>
-            <div class="activity-item">
-                <div class="activity-icon" style="background: #ef4444;">🚨</div>
-                <div class="activity-content">
-                    <div class="activity-text">Order #1230 requires attention</div>
-                    <div class="activity-time">3 hours ago</div>
+                <div class="flex items-start space-x-4">
+                    <div class="w-10 h-10 bg-amber-500 rounded-full flex items-center justify-center text-white">📦</div>
+                    <div>
+                        <p class="font-medium">Low stock: iPhone 15</p>
+                        <p class="text-sm text-gray-500">1 hour ago</p>
+                    </div>
                 </div>
             </div>
         </div>
