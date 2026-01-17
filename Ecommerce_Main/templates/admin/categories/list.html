@@ -1,0 +1,350 @@
+{% extends "admin/base.html" %}
+{% load i18n %}
+{% load form_extras %}
+
+{% block content %}
+
+<!-- ================= STYLES ================= -->
+<style>
+@keyframes fadeSlide {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulseSoft {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(20,184,166,.35); }
+    50% { box-shadow: 0 0 0 6px rgba(20,184,166,0); }
+}
+
+.animate-fade-slide {
+    animation: fadeSlide .45s cubic-bezier(.4,0,.2,1) both;
+}
+
+.card-hover {
+    transition: all .25s ease;
+}
+.card-hover:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 14px 30px -12px rgba(0,0,0,.15);
+}
+
+input:focus, select:focus {
+    outline: none;
+    border-color: #14b8a6;
+    box-shadow: 0 0 0 3px rgba(20,184,166,.2);
+}
+</style>
+
+<div class="min-h-screen bg-slate-50 p-4 sm:p-6 space-y-8 animate-fade-slide">
+
+    <!-- ================= HEADER ================= -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+            <h1 class="text-2xl sm:text-3xl font-semibold text-slate-800 tracking-tight">
+                {{ title }}
+            </h1>
+            <p class="text-sm text-slate-500 mt-1">
+                {% trans "Manage and organize product categories" %}
+            </p>
+        </div>
+
+        <a href="{% url 'dashboard:category_create' %}"
+           class="inline-flex items-center gap-2 px-6 py-3
+                  bg-gradient-to-r from-teal-600 to-emerald-600
+                  hover:from-teal-700 hover:to-emerald-700
+                  text-white rounded-xl shadow-md transition
+                  hover:-translate-y-0.5 hover:shadow-lg">
+            <span class="text-lg">＋</span>
+            {% trans "New Category" %}
+        </a>
+    </div>
+
+    <!-- ================= STATS ================= -->
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-5">
+        <div class="bg-white rounded-2xl p-5 shadow-sm card-hover">
+            <p class="text-sm text-slate-500">{% trans "Total Categories" %}</p>
+            <p class="text-3xl font-semibold text-slate-800">{{ total_count }}</p>
+        </div>
+
+        <div class="bg-white rounded-2xl p-5 shadow-sm card-hover">
+            <p class="text-sm text-slate-500">{% trans "Active Categories" %}</p>
+            <p class="text-3xl font-semibold text-emerald-600">{{ active_count }}</p>
+        </div>
+
+        <div class="bg-gradient-to-br from-teal-50 to-emerald-50
+                    rounded-2xl p-5 border border-teal-100">
+            <p class="text-sm font-medium text-teal-700">{% trans "Tip" %}</p>
+            <p class="text-sm text-teal-800 mt-1">
+                {% trans "Use toggles for instant control" %}
+            </p>
+        </div>
+    </div>
+
+    <!-- ================= FILTERS ================= -->
+    <form method="get"
+          class="grid grid-cols-1 lg:grid-cols-5 gap-3
+                 bg-white rounded-2xl p-4 shadow-sm card-hover">
+
+        <input type="text" name="search" value="{{ search_query }}"
+               placeholder="{% trans 'Search category…' %}"
+               class="lg:col-span-2 px-4 py-2.5 rounded-xl border border-slate-200">
+
+        <select name="is_active" class="px-4 py-2.5 rounded-xl border border-slate-200">
+            <option value="">{% trans "Status" %}</option>
+            <option value="1" {% if filter_is_active == "1" %}selected{% endif %}>
+                {% trans "Active" %}
+            </option>
+            <option value="0" {% if filter_is_active == "0" %}selected{% endif %}>
+                {% trans "Inactive" %}
+            </option>
+        </select>
+
+        <select name="show_in_menu" class="px-4 py-2.5 rounded-xl border border-slate-200">
+            <option value="">{% trans "Menu Visibility" %}</option>
+            <option value="1" {% if filter_show_in_menu == "1" %}selected{% endif %}>
+                {% trans "Shown" %}
+            </option>
+            <option value="0" {% if filter_show_in_menu == "0" %}selected{% endif %}>
+                {% trans "Hidden" %}
+            </option>
+        </select>
+
+        <div class="flex gap-2">
+            <button class="flex-1 px-5 py-2.5 rounded-xl
+                           bg-teal-600 hover:bg-teal-700
+                           text-white transition">
+                {% trans "Apply" %}
+            </button>
+            <a href="{% url 'dashboard:category_list' %}"
+               class="flex-1 px-5 py-2.5 rounded-xl bg-slate-100
+                      hover:bg-slate-200 text-center transition">
+                {% trans "Reset" %}
+            </a>
+        </div>
+    </form>
+
+    <!-- ================= TABLE ================= -->
+    <div class="bg-white rounded-2xl shadow-sm overflow-x-auto">
+        <table class="min-w-full text-sm">
+            <thead class="bg-slate-100 text-slate-600 sticky top-0 z-10">
+                <tr>
+                    <th class="px-4 py-3 text-left">{% trans "Category" %}</th>
+                    <th class="px-4 py-3 text-left">{% trans "Parent" %}</th>
+                    <th class="px-4 py-3 text-center">{% trans "Image" %}</th>
+                    <th class="px-4 py-3 text-center">{% trans "Banner" %}</th>
+                    <th class="px-4 py-3 text-center">{% trans "Active" %}</th>
+                    <th class="px-4 py-3 text-center">{% trans "Menu" %}</th>
+                    <th class="px-4 py-3 text-center">{% trans "Actions" %}</th>
+                </tr>
+            </thead>
+
+            <tbody class="divide-y">
+            {% for category in categories %}
+                <tr class="transition hover:bg-teal-50/40
+                           {% if not category.is_active %} bg-slate-50 opacity-70 {% endif %}">
+
+                    <td class="px-4 py-3 font-medium text-slate-800">
+                        {{ category.name }}
+                    </td>
+
+                    <td class="px-4 py-3 text-slate-600">
+                        {{ category.parent.name|default:"—" }}
+                    </td>
+
+                    <td class="px-4 py-3 text-center">
+                        {% if category.image %}
+                            <img src="{{ category.image.url }}"
+                                 class="h-10 w-10 mx-auto rounded-lg object-cover">
+                        {% else %} — {% endif %}
+                    </td>
+
+                    <td class="px-4 py-3 text-center">
+                        {% if category.banner %}
+                            <img src="{{ category.banner.url }}"
+                                 class="h-10 w-20 mx-auto rounded-lg object-cover">
+                        {% else %} — {% endif %}
+                    </td>
+
+                    <!-- ACTIVE TOGGLE -->
+                    <td class="px-4 py-3 text-center">
+                        <button type="button"
+                                data-id="{{ category.id }}"
+                                data-active="{{ category.is_active|yesno:'true,false' }}"
+                                onclick="toggleStatus(this)"
+                                class="relative inline-flex h-6 w-11 items-center rounded-full
+                                       transition-colors duration-200
+                                       {{ category.is_active|yesno:'bg-emerald-500,bg-slate-300' }}">
+                            <span class="inline-block h-4 w-4 bg-white rounded-full shadow
+                                         transform transition-transform duration-200
+                                         {{ category.is_active|yesno:'translate-x-6,translate-x-1' }}">
+                            </span>
+                        </button>
+                    </td>
+
+                    <!-- MENU TOGGLE -->
+                    <td class="px-4 py-3 text-center">
+                        <button type="button"
+                                data-id="{{ category.id }}"
+                                data-active="{{ category.show_in_menu|yesno:'true,false' }}"
+                                onclick="toggleMenu(this)"
+                                class="relative inline-flex h-6 w-11 items-center rounded-full
+                                       transition-colors duration-200
+                                       {{ category.show_in_menu|yesno:'bg-teal-500,bg-slate-300' }}">
+                            <span class="inline-block h-4 w-4 bg-white rounded-full shadow
+                                         transform transition-transform duration-200
+                                         {{ category.show_in_menu|yesno:'translate-x-6,translate-x-1' }}">
+                            </span>
+                        </button>
+                    </td>
+
+                    <!-- ACTIONS -->
+                    <td class="px-4 py-3 text-center">
+                        <div class="flex justify-center gap-2">
+                            <a href="{% url 'dashboard:category_edit' category.path %}"
+                               class="px-3 py-1.5 rounded-lg bg-slate-100
+                                      hover:bg-slate-200 transition">
+                                ✏️ {% trans "Edit" %}
+                            </a>
+
+                            {% if not category.is_active %}
+                            <button type="button"
+                                    onclick="confirmDelete('{{ category.path }}')"
+                                    class="px-3 py-1.5 rounded-lg bg-red-600
+                                           text-white hover:bg-red-700 transition">
+                                🗑 {% trans "Delete" %}
+                            </button>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+            {% empty %}
+                <tr>
+                    <td colspan="7" class="text-center py-16 text-slate-500">
+                        <div class="text-5xl mb-3">📂</div>
+                        {% trans "No categories found" %}
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- ================= PAGINATION ================= -->
+    {% if is_paginated %}
+    <div class="flex justify-center gap-2">
+        {% if page_obj.has_previous %}
+            <a href="?{% url_replace request.GET 'page' page_obj.previous_page_number %}"
+               class="px-4 py-2 rounded-xl bg-white border hover:bg-slate-50">
+                {% trans "Prev" %}
+            </a>
+        {% endif %}
+
+        <span class="px-4 py-2 rounded-xl bg-teal-600 text-white">
+            {{ page_obj.number }} / {{ paginator.num_pages }}
+        </span>
+
+        {% if page_obj.has_next %}
+            <a href="?{% url_replace request.GET 'page' page_obj.next_page_number %}"
+               class="px-4 py-2 rounded-xl bg-white border hover:bg-slate-50">
+                {% trans "Next" %}
+            </a>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+
+<!-- ================= SCRIPTS ================= -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<script>
+const csrfToken = '{{ csrf_token }}';
+
+async function post(url, data) {
+    const res = await fetch(url, {
+        method: "POST",
+        headers: {
+            "X-CSRFToken": csrfToken,
+            "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: new URLSearchParams(data)
+    });
+    return res.json();
+}
+
+function animateToggle(btn, active, onColor, offColor) {
+    const dot = btn.querySelector("span");
+    btn.classList.toggle(onColor, active);
+    btn.classList.toggle(offColor, !active);
+    dot.classList.toggle("translate-x-6", active);
+    dot.classList.toggle("translate-x-1", !active);
+    btn.dataset.active = active ? "true" : "false";
+    btn.style.animation = "pulseSoft 1s";
+    setTimeout(() => btn.style.animation = "", 1000);
+}
+
+async function toggleStatus(btn) {
+    const id = btn.dataset.id;
+    const current = btn.dataset.active === "true";
+    const next = !current;
+
+    animateToggle(btn, next, "bg-emerald-500", "bg-slate-300");
+
+    const res = await post("{% url 'dashboard:category_toggle_status' %}", { id });
+    if (!res || !res.success) {
+        animateToggle(btn, current, "bg-emerald-500", "bg-slate-300");
+        Swal.fire("Error", res?.message || "Failed", "error");
+    } else {
+        Swal.fire({
+            toast: true,
+            position: "top-end",
+            icon: "success",
+            title: next ? "{{ _('Category activated') }}" : "{{ _('Category deactivated') }}",
+            showConfirmButton: false,
+            timer: 2000
+        });
+    }
+}
+
+async function toggleMenu(btn) {
+    const id = btn.dataset.id;
+    const current = btn.dataset.active === "true";
+    const next = !current;
+
+    animateToggle(btn, next, "bg-teal-500", "bg-slate-300");
+
+    const res = await post("{% url 'dashboard:category_toggle_menu' %}", { id });
+    if (!res || !res.success) {
+        animateToggle(btn, current, "bg-teal-500", "bg-slate-300");
+        Swal.fire("Error", res?.message || "Failed", "error");
+    }
+}
+
+function confirmDelete(path) {
+    Swal.fire({
+        title: "{{ _('Permanently delete category?') }}",
+        text: "{{ _('This action cannot be undone.') }}",
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonColor: "#dc2626",
+        confirmButtonText: "{{ _('Delete') }}",
+        cancelButtonText: "{{ _('Cancel') }}"
+    }).then((result) => {
+        if (result.isConfirmed) {
+            const form = document.createElement("form");
+            form.method = "POST";
+            form.action = "{% url 'dashboard:category_delete' 'PATH' %}".replace("PATH", path);
+
+            const csrf = document.createElement("input");
+            csrf.type = "hidden";
+            csrf.name = "csrfmiddlewaretoken";
+            csrf.value = csrfToken;
+
+            form.appendChild(csrf);
+            document.body.appendChild(form);
+            form.submit();
+        }
+    });
+}
+</script>
+
+{% endblock %}
