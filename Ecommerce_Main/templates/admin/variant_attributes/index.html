@@ -1,0 +1,242 @@
+{% extends "admin/base.html" %}
+{% load i18n %}
+{% load form_extras %}
+
+{% block content %}
+
+<style>
+.animate-fade {
+    animation: fade .35s ease-out both;
+}
+@keyframes fade {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+</style>
+
+<div class="max-w-6xl mx-auto space-y-8 animate-fade">
+
+    <!-- ================= HEADER ================= -->
+    <div>
+        <h1 class="text-2xl font-semibold text-slate-800">
+            {% trans "Variant Attributes" %}
+        </h1>
+        <p class="text-sm text-slate-500 mt-1">
+            {% trans "Manage attributes like Color, Size, Storage" %}
+        </p>
+    </div>
+
+    <!-- ================= STATS ================= -->
+    <div class="grid sm:grid-cols-3 gap-4">
+        <div class="bg-white p-4 rounded-xl shadow-sm">
+            <p class="text-xs text-slate-500">{% trans "Total" %}</p>
+            <p class="text-2xl font-semibold">{{ total_count }}</p>
+        </div>
+        <div class="bg-white p-4 rounded-xl shadow-sm">
+            <p class="text-xs text-slate-500">{% trans "Active" %}</p>
+            <p class="text-2xl font-semibold text-emerald-600">
+                {{ active_count }}
+            </p>
+        </div>
+        <div class="bg-emerald-50 p-4 rounded-xl border border-emerald-100 flex items-center">
+            <p class="text-sm text-emerald-700">
+                {% trans "Tip: Manage values inside each attribute" %}
+            </p>
+        </div>
+    </div>
+
+    <!-- ================= FILTERS ================= -->
+    <form method="get"
+          class="bg-white p-4 rounded-xl shadow-sm
+                 grid sm:grid-cols-4 gap-3 items-center">
+
+        <input type="text"
+               name="search"
+               value="{{ search_query }}"
+               placeholder="{% trans 'Search attribute…' %}"
+               class="sm:col-span-2 px-4 py-2.5 rounded-lg border">
+
+        <select name="is_active"
+                class="px-4 py-2.5 rounded-lg border">
+            <option value="">{% trans "Status" %}</option>
+            <option value="1" {% if filter_is_active == "1" %}selected{% endif %}>
+                {% trans "Active" %}
+            </option>
+            <option value="0" {% if filter_is_active == "0" %}selected{% endif %}>
+                {% trans "Inactive" %}
+            </option>
+        </select>
+
+        <div class="flex gap-2">
+            <button class="flex-1 h-[42px] bg-teal-600 text-white rounded-lg">
+                {% trans "Apply" %}
+            </button>
+            <a href="{% url 'dashboard:variant_attribute_index' %}"
+               class="flex-1 h-[42px] flex items-center justify-center
+                      bg-slate-100 rounded-lg">
+                {% trans "Reset" %}
+            </a>
+        </div>
+    </form>
+
+    <!-- ================= CREATE ================= -->
+    <form id="createForm"
+          class="bg-white p-4 rounded-xl shadow-sm
+                 flex gap-3 items-center">
+
+        {% csrf_token %}
+        <input name="name"
+               placeholder="{% trans 'New attribute (e.g. Color)' %}"
+               class="flex-1 px-4 py-2.5 rounded-lg border">
+
+        <button type="submit"
+                class="h-[42px] px-6 bg-teal-600 hover:bg-teal-700
+                       text-white rounded-lg transition">
+            {% trans "Add" %}
+        </button>
+    </form>
+
+    <!-- ================= LIST ================= -->
+    <div class="bg-white rounded-xl shadow-sm overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead class="bg-slate-100 text-slate-600">
+                <tr>
+                    <th class="p-4 text-left">{% trans "Attribute" %}</th>
+                    <th class="p-4 text-center">{% trans "Values" %}</th>
+                    <th class="p-4 text-center">{% trans "Status" %}</th>
+                    <th class="p-4 text-center">{% trans "Actions" %}</th>
+                </tr>
+            </thead>
+
+            <tbody class="divide-y">
+            {% for attr in attributes %}
+                <tr class="hover:bg-slate-50
+                           {% if not attr.is_active %}opacity-60{% endif %}">
+
+                    <td class="p-4 font-medium text-slate-800">
+                        {{ attr.name }}
+                    </td>
+
+                    <td class="p-4 text-center">
+                        {{ attr.values.count }}
+                    </td>
+
+                    <td class="p-4 text-center">
+                        <div class="flex justify-center">
+                            <button type="button"
+                                    data-id="{{ attr.id }}"
+                                    data-active="{{ attr.is_active|yesno:'true,false' }}"
+                                    onclick="toggleAttr(this)"
+                                    class="relative inline-flex h-6 w-11 rounded-full
+                                           transition
+                                           {{ attr.is_active|yesno:'bg-emerald-500,bg-slate-300' }}">
+                                <span class="inline-block h-4 w-4 bg-white rounded-full shadow
+                                             transform transition
+                                             {{ attr.is_active|yesno:'translate-x-6,translate-x-1' }}">
+                                </span>
+                            </button>
+                        </div>
+                    </td>
+
+                    <td class="p-4 text-center">
+                        <a href="{% url 'dashboard:variant_attribute_values' attr.id %}"
+                           class="inline-flex items-center justify-center
+                                  px-4 py-2 bg-slate-100 hover:bg-slate-200
+                                  rounded-lg transition">
+                            {% trans "Manage Values" %}
+                        </a>
+                    </td>
+                </tr>
+            {% empty %}
+                <tr>
+                    <td colspan="4" class="text-center py-16 text-slate-500">
+                        {% trans "No attributes found" %}
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- ================= PAGINATION ================= -->
+    {% if is_paginated %}
+    <div class="flex justify-center gap-2">
+        {% if page_obj.has_previous %}
+            <a href="?{% url_replace request.GET 'page' page_obj.previous_page_number %}"
+               class="px-4 py-2 bg-white border rounded-lg">
+                {% trans "Prev" %}
+            </a>
+        {% endif %}
+
+        <span class="px-4 py-2 bg-teal-600 text-white rounded-lg">
+            {{ page_obj.number }} / {{ paginator.num_pages }}
+        </span>
+
+        {% if page_obj.has_next %}
+            <a href="?{% url_replace request.GET 'page' page_obj.next_page_number %}"
+               class="px-4 py-2 bg-white border rounded-lg">
+                {% trans "Next" %}
+            </a>
+        {% endif %}
+    </div>
+    {% endif %}
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+const csrfToken = "{{ csrf_token }}";
+
+/* CREATE ATTRIBUTE */
+document.getElementById("createForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const name = e.target.name.value.trim();
+    if (!name) {
+        Swal.fire("Error", "Attribute name is required", "error");
+        return;
+    }
+
+    const res = await fetch("{% url 'dashboard:variant_attribute_create' %}", {
+        method: "POST",
+        headers: {
+            "X-CSRFToken": csrfToken,
+            "Content-Type": "application/x-www-form-urlencoded"
+        },
+        body: "name=" + encodeURIComponent(name)
+    });
+
+    const data = await res.json();
+    if (data.success) location.reload();
+    else Swal.fire("Error", data.message || "Failed", "error");
+});
+
+/* TOGGLE STATUS */
+async function toggleAttr(btn) {
+    const id = btn.dataset.id;
+    const current = btn.dataset.active === "true";
+    const next = !current;
+
+    btn.dataset.active = next;
+    btn.classList.toggle("bg-emerald-500", next);
+    btn.classList.toggle("bg-slate-300", !next);
+    btn.querySelector("span").classList.toggle("translate-x-6", next);
+    btn.querySelector("span").classList.toggle("translate-x-1", !next);
+
+    const res = await fetch("{% url 'dashboard:variant_attribute_toggle' %}", {
+        method: "POST",
+        headers: {
+            "X-CSRFToken": csrfToken,
+            "Content-Type": "application/x-www-form-urlencoded"
+        },
+        body: "id=" + id
+    });
+
+    const data = await res.json();
+    if (!data.success) {
+        Swal.fire("Error", "Update failed", "error");
+        location.reload();
+    }
+}
+</script>
+
+{% endblock %}
