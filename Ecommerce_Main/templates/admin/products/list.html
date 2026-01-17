@@ -1,0 +1,235 @@
+{% extends "admin/base.html" %}
+{% load i18n %}
+{% load form_extras %}
+
+{% block content %}
+
+<!-- ================= STYLES ================= -->
+<style>
+@keyframes fadeSlide {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-slide {
+    animation: fadeSlide .45s cubic-bezier(.4,0,.2,1) both;
+}
+.card-hover {
+    transition: all .25s ease;
+}
+.card-hover:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 14px 30px -12px rgba(0,0,0,.15);
+}
+</style>
+
+<div class="min-h-screen bg-slate-50 p-4 sm:p-6 space-y-8 animate-fade-slide">
+
+    <!-- ================= HEADER ================= -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+            <h1 class="text-2xl sm:text-3xl font-semibold text-slate-800">
+                {{ title }}
+            </h1>
+            <p class="text-sm text-slate-500 mt-1">
+                {% trans "Manage products and their variants" %}
+            </p>
+        </div>
+
+        <a href="{% url 'dashboard:product_create' %}"
+           class="inline-flex items-center gap-2 px-6 py-3
+                  bg-gradient-to-r from-teal-600 to-emerald-600
+                  hover:from-teal-700 hover:to-emerald-700
+                  text-white rounded-xl shadow-md transition
+                  hover:-translate-y-0.5 hover:shadow-lg">
+            <span class="text-lg">＋</span>
+            {% trans "New Product" %}
+        </a>
+    </div>
+
+    <!-- ================= STATS ================= -->
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-5">
+        <div class="bg-white rounded-2xl p-5 shadow-sm card-hover">
+            <p class="text-sm text-slate-500">{% trans "Total Products" %}</p>
+            <p class="text-3xl font-semibold text-slate-800">{{ total_count }}</p>
+        </div>
+
+        <div class="bg-white rounded-2xl p-5 shadow-sm card-hover">
+            <p class="text-sm text-slate-500">{% trans "Active Products" %}</p>
+            <p class="text-3xl font-semibold text-emerald-600">{{ active_count }}</p>
+        </div>
+
+        <div class="bg-emerald-50 rounded-2xl p-5 border border-emerald-100">
+            <p class="text-sm font-medium text-emerald-700">{% trans "Tip" %}</p>
+            <p class="text-sm text-emerald-800 mt-1">
+                {% trans "Products require at least one active variant" %}
+            </p>
+        </div>
+    </div>
+
+    <!-- ================= FILTERS ================= -->
+    <form method="get"
+          class="grid grid-cols-1 lg:grid-cols-5 gap-3
+                 bg-white rounded-2xl p-4 shadow-sm card-hover">
+
+        <input type="text" name="search" value="{{ search_query }}"
+               placeholder="{% trans 'Search product…' %}"
+               class="lg:col-span-2 px-4 py-2.5 rounded-xl border">
+
+        <select name="is_active" class="px-4 py-2.5 rounded-xl border">
+            <option value="">{% trans "Status" %}</option>
+            <option value="1" {% if filter_is_active == "1" %}selected{% endif %}>{% trans "Active" %}</option>
+            <option value="0" {% if filter_is_active == "0" %}selected{% endif %}>{% trans "Inactive" %}</option>
+        </select>
+
+        <select name="is_featured" class="px-4 py-2.5 rounded-xl border">
+            <option value="">{% trans "Featured" %}</option>
+            <option value="1" {% if filter_is_featured == "1" %}selected{% endif %}>{% trans "Yes" %}</option>
+            <option value="0" {% if filter_is_featured == "0" %}selected{% endif %}>{% trans "No" %}</option>
+        </select>
+
+        <div class="flex gap-2">
+            <button class="flex-1 px-5 py-2.5 rounded-xl bg-teal-600 text-white">
+                {% trans "Apply" %}
+            </button>
+            <a href="{% url 'dashboard:product_list' %}"
+               class="flex-1 px-5 py-2.5 rounded-xl bg-slate-100 text-center">
+                {% trans "Reset" %}
+            </a>
+        </div>
+    </form>
+
+    <!-- ================= TABLE ================= -->
+    <div class="bg-white rounded-2xl shadow-sm overflow-x-auto">
+        <table class="min-w-full text-sm">
+            <thead class="bg-slate-100 text-slate-600">
+                <tr>
+                    <th class="px-4 py-3 text-left">{% trans "Product" %}</th>
+                    <th class="px-4 py-3 text-left">{% trans "Category" %}</th>
+                    <th class="px-4 py-3 text-left">{% trans "Brand" %}</th>
+                    <th class="px-4 py-3 text-center">{% trans "Variants" %}</th>
+                    <th class="px-4 py-3 text-center">{% trans "Active" %}</th>
+                    <th class="px-4 py-3 text-center">{% trans "Featured" %}</th>
+                    <th class="px-4 py-3 text-center">{% trans "Actions" %}</th>
+                </tr>
+            </thead>
+
+            <tbody class="divide-y">
+            {% for product in products %}
+                <tr class="hover:bg-teal-50/40 {% if not product.is_active %}opacity-60{% endif %}">
+
+                    <td class="px-4 py-3 font-medium">{{ product.name }}</td>
+                    <td class="px-4 py-3">{{ product.category.name }}</td>
+                    <td class="px-4 py-3">{{ product.brand.name|default:"—" }}</td>
+
+                    <td class="px-4 py-3 text-center font-semibold">
+                        {{ product.variant_count }}
+                    </td>
+
+                    <!-- ACTIVE TOGGLE -->
+                    <td class="px-4 py-3 text-center">
+                        <button type="button"
+                                data-id="{{ product.id }}"
+                                data-active="{{ product.is_active|yesno:'true,false' }}"
+                                onclick="toggleProduct(this, 'status')"
+                                class="relative inline-flex h-6 w-11 items-center rounded-full
+                                {{ product.is_active|yesno:'bg-emerald-500,bg-slate-300' }}">
+                            <span class="inline-block h-4 w-4 bg-white rounded-full shadow
+                            {{ product.is_active|yesno:'translate-x-6,translate-x-1' }}"></span>
+                        </button>
+                    </td>
+
+                    <!-- FEATURED TOGGLE -->
+                    <td class="px-4 py-3 text-center">
+                        <button type="button"
+                                data-id="{{ product.id }}"
+                                data-active="{{ product.is_featured|yesno:'true,false' }}"
+                                onclick="toggleProduct(this, 'featured')"
+                                class="relative inline-flex h-6 w-11 items-center rounded-full
+                                {{ product.is_featured|yesno:'bg-teal-500,bg-slate-300' }}">
+                            <span class="inline-block h-4 w-4 bg-white rounded-full shadow
+                            {{ product.is_featured|yesno:'translate-x-6,translate-x-1' }}"></span>
+                        </button>
+                    </td>
+
+                    <!-- ACTIONS -->
+                    <td class="px-4 py-3 text-center">
+                        <div class="flex justify-center gap-2">
+                            <a href="{% url 'dashboard:product_edit' product.slug %}"
+                               class="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200">
+                                ✏️
+                            </a>
+
+                            <a href="{% url 'dashboard:product_variant_list' product.slug %}"
+                               class="px-3 py-1.5 rounded-lg bg-indigo-100 hover:bg-indigo-200">
+                                🧬
+                            </a>
+
+                            {% if not product.is_active %}
+                            <button onclick="confirmDelete('{{ product.slug }}')"
+                                    class="px-3 py-1.5 rounded-lg bg-red-600 text-white">
+                                🗑
+                            </button>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+            {% empty %}
+                <tr>
+                    <td colspan="7" class="py-16 text-center text-slate-500">
+                        {% trans "No products found" %}
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- ================= PAGINATION ================= -->
+    {% if is_paginated %}
+    <div class="flex justify-center gap-2">
+        {% if page_obj.has_previous %}
+            <a href="?{% url_replace request.GET 'page' page_obj.previous_page_number %}"
+               class="px-4 py-2 bg-white border rounded-lg">{% trans "Prev" %}</a>
+        {% endif %}
+
+        <span class="px-4 py-2 bg-teal-600 text-white rounded-lg">
+            {{ page_obj.number }} / {{ paginator.num_pages }}
+        </span>
+
+        {% if page_obj.has_next %}
+            <a href="?{% url_replace request.GET 'page' page_obj.next_page_number %}"
+               class="px-4 py-2 bg-white border rounded-lg">{% trans "Next" %}</a>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<script>
+const csrfToken = "{{ csrf_token }}";
+
+async function toggleProduct(btn, type) {
+    const id = btn.dataset.id;
+    const current = btn.dataset.active === "true";
+    btn.dataset.active = (!current).toString();
+
+    const url = type === "status"
+        ? "{% url 'dashboard:product_toggle_status' %}"
+        : "{% url 'dashboard:product_toggle_featured' %}";
+
+    const res = await fetch(url, {
+        method: "POST",
+        headers: {
+            "X-CSRFToken": csrfToken,
+            "Content-Type": "application/x-www-form-urlencoded"
+        },
+        body: "id=" + id
+    });
+
+    const data = await res.json();
+    if (!data.success) location.reload();
+}
+</script>
+
+{% endblock %}
