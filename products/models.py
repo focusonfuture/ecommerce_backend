@@ -198,7 +198,7 @@ class Product(models.Model):
     slug = models.SlugField(max_length=255, unique=True, blank=True)
 
     category = TreeForeignKey(Category, on_delete=models.PROTECT)
-    brand = models.ForeignKey(Brand, on_delete=models.PROTECT, null=True, blank=True)
+    brand = models.ForeignKey(Brand, on_delete=models.PROTECT, null=True, blank=True,related_name='products')
 
     short_description = models.TextField(blank=True)
     description = models.TextField(blank=True)

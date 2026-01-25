@@ -192,7 +192,7 @@ input:focus, select:focus {
                     <!-- ACTIONS -->
                     <td class="px-4 py-3 text-center">
                         <div class="flex justify-center gap-2">
-                            <a href="{% url 'dashboard:brand_update' brand.pk %}"
+                            <a href="{% url 'dashboard:brand_edit' brand.pk %}"
                                class="px-3 py-1.5 rounded-lg bg-slate-100
                                       hover:bg-slate-200 transition">
                                 ✏️ {% trans "Edit" %}
@@ -315,19 +315,26 @@ function confirmDelete(id) {
         if (result.isConfirmed) {
             const form = document.createElement("form");
             form.method = "POST";
-            form.action = "{% url 'dashboard:brand_delete' 0 %}".replace("/0/", `/${id}/`);
+            form.action = "{% url 'dashboard:brand_soft_delete' %}";
 
             const csrf = document.createElement("input");
             csrf.type = "hidden";
             csrf.name = "csrfmiddlewaretoken";
             csrf.value = csrfToken;
 
+            const idField = document.createElement("input");
+            idField.type = "hidden";
+            idField.name = "id";
+            idField.value = id;
+
             form.appendChild(csrf);
+            form.appendChild(idField);
             document.body.appendChild(form);
             form.submit();
         }
     });
 }
+
 </script>
 
 {% endblock %}

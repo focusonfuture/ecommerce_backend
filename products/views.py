@@ -1,5 +1,3 @@
-# views.py (admin views for Category and Brand)
-
 import logging
 from django.conf import settings
 from django.contrib import messages

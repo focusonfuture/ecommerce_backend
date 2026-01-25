@@ -10,10 +10,11 @@ def redirect_to_custom_admin_login(request):
     return redirect('accounts:admin_login')
 
 urlpatterns = [
-    path('', include('accounts.urls')),  # better: move admin_login here or use view
-    path('api/auth/', include('accounts.urls')),  # Clean prefix
+    path('', include('accounts.urls')),  
+    path('api/auth/', include('accounts.urls')),  
 
     path('', include('products.urls')),
+    path('api/products/',include('products.api.urls')),
 ]
 
 if settings.DEBUG:
